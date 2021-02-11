@@ -1,0 +1,175 @@
+<!DOCTYPE HTML>
+<!--
+	Iridium by TEMPLATED
+    templated.co @templatedco
+    Released for free under the Creative Commons Attribution 3.0 license (templated.co/license)
+-->
+<html>
+	<head>
+		<title>NutCrackers Security</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta name="description" content="" />
+		<meta name="keywords" content="" />
+		<link href='http://fonts.googleapis.com/css?family=Arimo:400,700' rel='stylesheet' type='text/css'>
+		<!--[if lte IE 8]><script src="js/html5shiv.js"></script><![endif]-->
+
+			<link rel="stylesheet" href="css/skel-noscript.css" />
+			<link rel="stylesheet" href="css/posts.css" />
+			<link rel="stylesheet" href="css/style-desktop.css" />
+		<!--[if lte IE 8]><link rel="stylesheet" href="css/ie/v8.css" /><![endif]-->
+		<!--[if lte IE 9]><link rel="stylesheet" href="css/ie/v9.css" /><![endif]-->
+		<!--<link rel="stylesheet" href="styles/ocean.css">-->
+		<link rel="stylesheet" href="styles/srcery.css">
+		<script src="highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+	</head>
+	<body class="homepage">
+
+		<!-- Header -->
+		<div>
+			<div class="container">
+
+				<!-- Logo -->
+				<div>
+					<ul class="default">
+						<li><a href="index.html">Home</a></li>
+						<li><a href="blog.html">Blog</a></li>
+						<li><a href="archive.html">Archive</a></li>
+					</ul>
+				</div>
+
+				<!-- Nav -->
+			</div>
+		</div>
+
+		<!-- Main -->
+		<div id="main">
+			<div class="container">
+				<div class="row">
+
+					<!-- Content -->
+					<div id="content" class="8u skel-cell-important">
+						<section>
+							<header>
+
+													              <span class="byline"><b><a href="crack.html">Cracking the PassFab RAR Software!!</a></b></span>
+																				<p></p>
+													                <img src="imagini/crack.png" alt="" style="height:275px;width:580px;" />
+													                <p>Hi, my name is Moldovan Darius (aka. T3jv1l). Here is a Proof of Concept, about how I was able to <b>Crack PassFab Software </b> with Buffer Overflow Vulnerability. First time I will explain what Buffer Overflow vulnerability is.</p>
+    <p><b>Buffer Overflow:</b> The buffer is a temporary area for storing data. When more data than initially allocated for storage is exceeded causes a change in memory, these additional data slip into other storage areas, which may corrupt or overwrite the data it holds. <b style="color:red">Exploitation this application is not dangerouse for users</b>, but using this buffer I was able to steal all the <b>(Serial Keys)</b>.</p>
+    <p><b><u>Let’s dirty my hands: </u></i></b>For replicate every step we need few tools for disassembly the software. I use: IDA PRO 6.8 Version for static analyze and x64dbg for dynamic analyze.
+First step is loading a software in x64dbg is easy to use </b>(ALT+A to attach the application).</b> Run x64 with Administrator Privilege because PassFab run just with this privilege.</p>
+<p>  <img src="imagini/crack1.png" alt="" style="height:275px;width:580px;" /></p>
+<p>Attach the program is done. We need to found hex address ex: <b>0x01234567</b> where the passfab.exe is start, because this software have ASLR <b>(Address Stack Layer Randomize, for more info check <a href="https://en.wikipedia.org/wiki/Address_space_layout_randomization">Wikipedia</a>)</b> protection on, that means the address is all time changed. This address where passfab start is used for reconfigure all the address in IDA Tools. Ok, now use <b>(ALT+M)</b> to see memory map and scroll down where you see something like this.</p>
+<p>  <img src="imagini/crack2.png" alt="" style="height:275px;width:580px;" /></p>
+<p>Copy the first address <b>0x00320000</b>, maybe you will see another address (ASLR), but concept is same.</p>
+<p>Now is time to Rebase program the memory from IDA (Rebase program means: The whole program will be shifted by the specifed amounts of bytes in the memory). Step for Rebase address in IDA (<b>Edit</b> > <b>Segments</b> > <b>Rebase program</b>). Value is started address at passfab.exe.</p>
+<p>  <img src="imagini/crack3.png" alt="" style="height:275px;width:580px;" /></p>
+<p>Now is turn to found the weak code in software. We need to generate a buffer exceed, let’s send x41 (A) in the field of <b>“Licensed E-mail”</b> and <b>“Registration Code”</b>. I wirite a simple program in python to generate 2000 A char’s.</p>
+<p><pre><code>#!/usr/bin/Python
+
+  filename="crack.txt"
+  junk="\x41"*2000
+
+  buffer = junk
+  textfile = open(filename, 'w')
+  textfile.write(buffer)
+  textfile.close()
+</pre></code></p>
+<p>Send the junk to PassFab RAR.</p>
+<p>  <img src="imagini/crack4.png" alt="" style="height:330px;width:580px;" /></p>
+<p>Go to x64dgb and look at EAX register is overwrite with AAAA, that means the memory is overwrite with my character.</p>
+<p>  <img src="imagini/crack5.png" alt="" style="height:200px;width:360px;"  /></p>
+<p>Now we need to focus at EIP, there is the important register, he tryed to said what is bad in this program. Copy the EIP address <b>0x00364800</b> and go in IDA. Press G in IDA and copy the EIP address.</p>
+<p>  <img src="imagini/crack6.png" alt=""  /></p>
+<p>Now we have this function. Press F5 to convert ASM into Pseudocode and read the code</p>
+<p>  <img src="imagini/crack7.png" alt="" /></p>
+<p>Here we have the function translated in Pseudocode.</p>
+<p>  <img src="imagini/crack8.png" /></p>
+<p>I will explain little bit what happened here. Here is the function of comparing the serial key, the algorithm for generating the offline key is generated with the data that the user enters. Validation is compared in this section:</p>
+<p>  <img src="imagini/crack9.png" /></p>
+<p>There we have the variable <b style="color:#62bcfa">v50</b>, which is a char, that means there is the key for validation. Let’s look close (<b style="color:#62bcfa">char v50;//</b> is located in <b style="color:#62bcfa">breakpoint -110h</b>).</p>
+<p>  <img src="imagini/hmm.png" /></p>
+<p>So if we analyze the address of <b style="color:#62bcfa">bp-110H</b> will see something interesting.</p>
+<p>  <img src="imagini/crack11.png" /></p>
+<p>In Section 1 we have  <b style="color:#62bcfa">0x003647E8 lea edi, [esp+46Ch+var_110]</b>, here is the key which is moved into EDI register. In Section 2 we have more instruction, CMP is for compare, JNZ is used like instruction “if” in C/C++, that means the 2<sup>nd</sup> is more like a validation algorithm for serial key.</p><p> Now what we need is to use again PassFab RAR in x64dbg and put breakpoint at first <b style="color:#62bcfa">var_110</b>. Found the address and use F2 to set breakpoint.</p>
+<p>  <img src="imagini/crack12.png" /></p>
+<p>Run again the Software and put in email field test@test (fake email) and serial “test” and look in ESI. ESI is index source register.</p>
+<p>  <img src="imagini/crack13.png" alt="" style="height:330px;width:580px;" /></p>
+<p>Click on the Register bottom and we have the first serial key ( Pro Personal RAR Password Recovery : ESI: "<b style="color:#62bcfa">98AA05-858868-AE5EF0-E1432D-24CFA107"</b> ) in debugger.</p>
+<p>  <img src="imagini/crack14.png" alt="" style="height:100px;width:300px;" /></p>
+<p>If you can see in debbugger, he tryed to compare original key with my fake key "test".</p>
+<p>  <img src="imagini/crack15.png" alt="" style="height:100px;width:800px;" /></p>
+<p>Now we need to run again program and we will se another Serial Keys (Pro Family RAR Password). And last Serial Keys (Pro Unlimited RAR Password).</p>
+<p>Test the last key <b style="color:#62bcfa">98AA05-808376-B45CF7-F44A1B-37DCA336</b></p>
+<p>  <img src="imagini/crack16.png" alt="" style="height:330px;width:580px;" /></p>
+<p>  <img src="imagini/crack17.png" alt="" style="height:330px;width:580px;" /></p>
+<p>I hope you like to read about this topic Reverse engineering Stuff and Exploit Development. By the way Softwares affected : PassFab for PDF, PassFab for RAR and PassFab for ZIP.</p>
+
+	<h1><b>References!!</b></h1>
+	<p><a href="https://www.hex-rays.com/products/ida/" >https://www.hex-rays.com/products/ida/</a></p>
+	<p><a href="https://github.com/x64dbg/x64dbg/releases" >https://github.com/x64dbg/x64dbg/releases</a></p>
+	<p><a href="https://resources.infosecinstitute.com/applied-cracking-byte-patching-ida-pro/#gref" >Short Example on crack software with IDA/</a></p>
+
+
+
+						</section>
+					</div>
+
+					<!-- Sidebar -->
+					<div id="sidebar" class="4u">
+						<section>
+							<header>
+								<h2>Blog posts</h2>
+							</header>
+							<ul class="style">
+								<li>
+
+																		<p class="posted">February 6, 2021 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Transfer.html">File Transfer In Red Team/Penetration Testing</a></p>
+																		<p class="posted">January 15, 2020 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="PE-file.html">PE Portable Executable File Format</a></p>
+																		<p class="posted">November 14, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="crack.html">Cracking The PassFab RAR Software</a></p>
+																		<p class="posted">March 3, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Forensics.html">Volatility: Extract Password From RAM</a></p>
+																		<p class="posted">February 28, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows6.html">Windows Exploit Development Part VI</a></p>
+																		<p class="posted">February 16, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows5.html">Windows Exploit Development Part V</a></p>
+																		<p class="posted">January 22, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows4.html">Windows Exploit Development Part IV</a></p>
+																		<p class="posted">January 16, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows3.html">Windows Exploit Development Part III</a></p>
+																		<p class="posted">January 16, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows2.html">Windows Exploit Development Part II</a></p>
+																		<p class="posted">January 1, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="WED.html">Windows Exploit Development Part I</a></p>
+																		<p class="posted">December 11, 2018 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Shellcode1.html">How to create your shellcode part II</a></p>
+																		<p class="posted">January 9, 2018 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Shellcode.html">How to create your own shellcode part I</a></p>
+																		<p class="posted">January 4, 2018 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Ubuntu.html">The Linux Commands you should NEVER use</a></p>
+																		<p class="posted">January 3, 2018 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Nmap.html">Nmap Firewall Scan</a></p>
+								</li>
+							</ul>
+						</section>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Footer -->
+
+		<!-- Copyright -->
+		<div id="copyright">
+			<div class="container">
+					Copyright &copy 2021 T3jv1l. All Rights Reserved. Created and designed by Mr.Leritaite.
+			</div>
+		</div>
+
+	</body>
+</html>

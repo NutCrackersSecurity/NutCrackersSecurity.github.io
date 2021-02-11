@@ -1,0 +1,238 @@
+<!DOCTYPE HTML>
+<!--
+	Iridium by TEMPLATED
+    templated.co @templatedco
+    Released for free under the Creative Commons Attribution 3.0 license (templated.co/license)
+-->
+<html>
+	<head>
+		<title>NutCrackers Security</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta name="description" content="" />
+		<meta name="keywords" content="" />
+		<link href='http://fonts.googleapis.com/css?family=Arimo:400,700' rel='stylesheet' type='text/css'>
+		<!--[if lte IE 8]><script src="js/html5shiv.js"></script><![endif]-->
+
+			<link rel="stylesheet" href="css/skel-noscript.css" />
+			<link rel="stylesheet" href="css/posts.css" />
+			<link rel="stylesheet" href="css/style-desktop.css" />
+		<!--[if lte IE 8]><link rel="stylesheet" href="css/ie/v8.css" /><![endif]-->
+		<!--[if lte IE 9]><link rel="stylesheet" href="css/ie/v9.css" /><![endif]-->
+		<!--<link rel="stylesheet" href="styles/ocean.css">-->
+		<link rel="stylesheet" href="styles/srcery.css">
+		<script src="highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+	</head>
+	<body class="homepage">
+
+		<!-- Header -->
+		<div>
+			<div class="container">
+
+				<!-- Logo -->
+				<div>
+					<ul class="default">
+						<li><a href="index.html">Home</a></li>
+						<li><a href="blog.html">Blog</a></li>
+						<li><a href="archive.html">Archive</a></li>
+					</ul>
+				</div>
+
+				<!-- Nav -->
+			</div>
+		</div>
+
+		<!-- Main -->
+		<div id="main">
+			<div class="container">
+				<div class="row">
+
+					<!-- Content -->
+					<div id="content" class="8u skel-cell-important">
+						<section>
+							<header>
+
+<span class="byline"><b><a href="PE-file.html">PE Portable Executable File Format!!</a></b></span>
+					                <img src="imagini/PEXE.png" alt="" style="height:275px;width:580px;" />
+					                <p>Hi, my name is Moldovan Darius (aka. <a href="https://twitter.com/T3jv1l">T3jv1l</a>).<b> For this analyze I use calc.exe executable file</b>. PE is the native Win32 file format. Every win32 executable uses PE file format. 32bit DLLs, COM files, OCX controls, Control Panel Applets (.CPL files) and .NET executables are all PE format. Even NT's kernel mode drivers use PE file format.
+					                </p>
+					                <p>According to <a href="https://en.wikipedia.org/wiki/Portable_Executable"> Wikipedia</a> "<i>PE format is a data structure that encapsulates the information necessary for the Windows OS loader to manage the wrapped executable code. This includes dynamic library references for linking, API export and import tables, resource management data and thread-local storage (TLS) data. On NT operating systems, the PE format is used for EXE, DLL, SYS (device driver), and other file types. The Extensible Firmware Interface (EFI) specification states that PE is the standard executable format in EFI environments."</i></p>
+													<p>The PE data structures include:</p>
+													              <p> <b>_IMAGE_DOS_HEADER</b>, <b>DOS STUB</b>, <b>_IMAGE_NT_HEADER</b></p>
+													              <p><b>_IMAGE_FILE_HEADER</b>, <b>_IMAGE_OPTIONAL_HEADER</b>, ,<b>_IMAGE_DIRECTORY_ENTRY_[*]</b>.</p>
+													              <p>We start with <b>_IMAGE_DOS_HEADER</b> which in the PE file format is the MS-DOS header which occupies the first 64 bytes of the file.
+													                It's there in case the program is run from DOS, so DOS can recognize it as a valid executable and run the DOS stub which is stored immediately after the header.
+													                The DOS stub usually just prints a string something like "This program must be run under Microsoft Windows" but it can be a full-blown DOS program.</p>
+<p><pre><code>typedef struct _IMAGE_DOS_HEADER {  // DOS .EXE header
+	USHORT e_magic;         // Magic number
+	    USHORT e_cblp;          // Bytes on last page of file
+	    USHORT e_cp;            // Pages in file
+	    USHORT e_crlc;          // Relocations
+	    USHORT e_cparhdr;       // Size of header in paragraphs
+	    USHORT e_minalloc;      // Minimum extra paragraphs needed
+	    USHORT e_maxalloc;      // Maximum extra paragraphs needed
+	    USHORT e_ss;            // Initial (relative) SS value
+	    USHORT e_sp;            // Initial SP value
+	    USHORT e_csum;          // Checksum
+	    USHORT e_ip;            // Initial IP value
+	    USHORT e_cs;            // Initial (relative) CS value
+	    USHORT e_lfarlc;        // File address of relocation table
+	    USHORT e_ovno;          // Overlay number
+	    USHORT e_res[4];        // Reserved words
+	    USHORT e_oemid;         // OEM identifier (for e_oeminfo)
+	    USHORT e_oeminfo;       // OEM information; e_oemid specific
+	    USHORT e_res2[10];      // Reserved words
+	    LONG   e_lfanew;        // File address of new exe header
+	  } IMAGE_DOS_HEADER, *PIMAGE_DOS_HEADER;
+	              </pre></code></p>
+								<p>In the PE file, the magic part of the DOS header contains the value <b>4D 5A</b>(  MZ= Mark Zbikowsky one of the original architects of MS-DOS).</p>
+              <p>Before analyze with WinDGB this Header let's speak about what is ImageBaseAddress, this is important, because we need to find the address where is locate the _IMAGE_DOS_HEADER. ImageBase is the address where an executable file will be memory-mapped to a specific location in memory.</p>
+              <p>According to <a href="https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#general-concepts">MSDN:</a> The newest Windows have this ImageBaseAddress: <b>0x00400000</b>. Now if all is clear let's start</p>
+              <p>Now let's see where is the start address of calc.exe using ImageBaseAddress. Type <b>lmv m image00400000</b> with this command we inspect closely and the output will be displayed verbosely.</p>
+              <p><img src="imagini/PE2.png"  alt="" /></p>
+              <p>Now we have the image base address of PE file (calc.exe) <b>0x00270000</b>.</p>
+              <p>Now we can see what is inside of _IMAGE_DOS_HEADER. It is similar to the C syntax above. We have the magic numeber 0x5A4D "MZ string" </p>
+              <p><img src="imagini/PE3.png" alt=''/></p>
+              <p>Now we need to found the offset of e_lfanew. Maybe you ask what is this e_lfanew? PE file header is located by indexing the e_lfanew field of the MS-DOS header.
+              The e_lfanew field simply gives the offset in the file, so add the file's memory-mapped base address to determine the actual memory-mapped address. Keep in mind the signature is <b>"PE" that is what we try to find</b>.</p>
+              <p>The main PE Header is a structure of type IMAGE_NT_HEADERS and mainly contains, IMAGE_FILE_HEADER, IMAGE_OPTIONAL_HEADER and IMAGE_DIRECTORY_ENTRY.</p>
+              <p><img src="imagini/PE4.png" alt=''/></p><p>The "n" in 0n232 indicates that the number is base 10 and "x" will indicate base 16 (hex). Made a simple calculation to find the "PE string"</p>
+              <p><img src="imagini/PE5.png" alt=''/></p>
+              <p>Now let's move to <b>_IMAGE_NT_HEADER</b>. It's not need to speak so much about this , because this is the main of PE header wich containt the PE Signature (0x4550=PE) and IMAGE_FILE_HEADER, IMAGE_OPTIONAL_HEADER and _IMAGE_DIRECTORY_ENTRY_[*]. </p>
+              <p><img src="imagini/PE6.png" alt=''/></p>
+              <p>Next Section is <b>_IMAGE_FILE_HEADER</b>. To access this section we need to add 4 bytes at 0x002700e8 address.</p>
+              <p><img src="imagini/PE7.png" alt=''/></p>
+              <p>Now let's see what contain the _IMAGE_FILE_HEADER section of PE file.</p>
+              <p><img src="imagini/PE8.png" alt=''/></p>
+              <p><b>Machine</b>. Contain CPU IDs, we can see we have 0x14c that means we use Intel I386. </p>
+              <p><img src="imagini/PE0.png" alt=''/></p>
+              <p><b>NumberOfSections</b>. The number of sections in the file.</p>
+              <p><b>TimeDateStamp</b>. The time that the linker (or compiler for an OBJ file) produced this file.</p>
+              <p><b>PointerToSymbolTable</b>. This field is only used in OBJ files and PE files with COFF debug information.</p>
+              <p><b>NumberOfSymbols</b>. The number of symbols in the COFF symbol table. <a href="http://www.delorie.com/djgpp/doc/coff/symtab.html">For more information about this check COFF Simbol Table</a>.</p>
+              <p><b>SizeOfOptionalHeader</b>. The size of an optional header that can follow this structure. In OBJs, the field is 0. In executables, it is the size of the IMAGE_OPTIONAL_HEADER structure that follows this structure.</p>
+              <p><b>Characteristics</b>. Flags with information about the file.</p>
+              <p>Next Section is <b>_IMAGE_OPTIONAL_HEADER</b>. To access this section we need to add 20 bytes(0x14) at 0x002700ec address.</p>
+              <p><img src="imagini/PE9.png" alt=''/></p>
+              <p>Now let's see what contain the _IMAGE_OPTIONAL_HEADER section.</p>
+              <p><img src="imagini/PE10.png" alt=''/></p>
+              <p><b>Magic numeber 0x10b</b>. The optional header magic number determines whether an image is a PE32 (0x10b) or PE32+(0x20b) executable.</p>
+              <p><b>MajorLinkerVersion, MinorLinkerVersion</b>. Indicates version of the linker that linked this image.</p>
+              <p><b>SizeOfCode</b>. Size of executable code.</p>
+              <p><b>SizeOfInitializedData</b>. Size of initialized data.</p>
+              <p><b>SizeOfUninitializedData.</b>. Size of uninitialized data.</p>
+              <p><b>AddressOfEntryPoint</b>. Defined in the PECOFF format for executable files refers to location in memory where the first instruction of execution will be placed</p>
+              <p><b>BaseOfCode</b>. Relative offset of code (".text" section) in loaded image.</p>
+              <p><b>BaseOfData</b>. Relative offset of uninitialized data (".bss" section) in loaded image</p>
+              <p><b>ImageBase</b>. Preferred base address in the address space of a process to map the executable image to. The linker defaults to 0x00400000, but you can override the default with the -BASE: linker switch</p>
+              <p><b>SectionAlignment</b>. Each section is loaded into the address space of a process sequentially, beginning at ImageBase. SectionAlignment dictates the minimum amount of space a section can occupy when loaded--that is, sections are aligned on SectionAlignment boundaries.</p>
+              <p><b>FileAlignment</b>. Minimum granularity of chunks of information within the image file prior to loading.</p>
+              <p><b>MajorOperatingSystemVersion</b>. Indicates the major version of the Windows NT operating system.</p>
+              <p><b>MinorOperatingSystemVersion</b>. Indicates the minor version of the Windows NT operating system.</p>
+              <p><b>MajorImageVersion</b>. Used to indicate the major version number of the application.</p>
+              <p><b>MinorImageVersion</b>. Used to indicate the minor version number of the application.</p>
+              <p><b>MajorSubsystemVersion.</b> Indicates the Windows NT Win32 subsystem major version number.</p>
+              <p><b>MinorSubsystemVersion.</b> Indicates the Windows NT Win32 subsystem minor version number.</p>
+              <p><b>Win32VersionValues</b>. Defines a version-information resource. The resource contains such information about the file as its version number, its intended operating system, and its original filename</p>
+              <p><b>SizeOfImage</b>. Indicates the amount of address space to reserve in the address space for the loaded executable image. This number is influenced greatly by SectionAlignment.</p>
+              <p><b>SizeOfHeaders</b>. This field indicates how much space in the file is used for representing all the file headers, including the MS-DOS header, PE file header, PE optional header, and PE section headers. The section bodies begin at this location in the file.</p>
+              <p><b>CheckSum</b>. A checksum value is used to validate the executable file at load time. The value is set and verified by the linker. The algorithm used for creating these checksum values is proprietary information and will not be published.</p>
+              <p><b>Subsystem</b>. Field used to identify the target subsystem for this executable. Each of the possible subsystem values are listed in the WINNT.H file immediately after the IMAGE_OPTIONAL_HEADER structure.</p>
+              <p><b>DllCharacteristics</b>. Flags used to indicate if a DLL image includes entry points for process and thread initialization and termination.<p>
+              <p><b>SizeOfStackReserve, SizeOfStackCommit, SizeOfHeapReserve, SizeOfHeapCommit</b>. These fields control the amount of address space to reserve and commit for the stack and default heap. Both the stack and heap have default values of 1 page committed and 16 pages reserved. These values are set with the linker switches -STACKSIZE: and -HEAPSIZE: .</p>
+              <p><b>LoaderFlags</b>. Tells the loader whether to break on load, debug on load, or the default, which is to let things run normally.</p>
+              <p><b>NumberOfRvaAndSizes</b>. This field identifies the length of the DataDirectory array that follows. It is important to note that this field is used to identify the size of the array, not the number of valid entries in the array</p>
+              <p><b>DataDirectory</b>. The data directory indicates where to find other important components of executable information in the file. It is really nothing more than an array of IMAGE_DATA_DIRECTORY structures that are located at the end of the optional header structure. The current PE file format defines 16 possible data directories, 11 of which are now being used.</p>
+              <p>Next Section is <b>_IMAGE_DATA_DIRECTORY</b>. To access this section we need to add 96 bytes at 0x002700100 address.</p>
+              <p><img src="imagini/PE11.png" alt=''/></p>
+              <p>Now we have address of _IMAGE_DATA_DIRECTORY 0x002700160. Display 16 time this header.</p>
+              <p><img src="imagini/PE12.png" alt=''/></p>
+              <p>Data directory is an 16 array _IMAGE_DATA_DIRECTORY structure. Each member of the  data directory is a structure called IMAGE_DATA_DIRECTORY, which has the following definition:</p>
+<p><pre><code>struct IMAGE_DATA_DIRECTORY STRUCT{
+	VirtualAddress dd ?
+        ISize dd ?
+  }
+</pre></code></p>
+
+
+
+
+
+
+
+
+
+
+    <h1><b>References!!</b></h1>
+		<p><a href="https://blog.kowalczyk.info/articles/pefileformat.html" >https://blog.kowalczyk.info/articles/pefileformat.html</a></p>
+		<p><a href="https://tech-zealots.com/malware-analysis/pe-portable-executable-structure-malware-analysis-part-2/" >https://tech-zealots.com/malware-analysis/pe-portable-executable-structure-malware-analysis-part-2/</a></p>
+		<p><a href="https://www.ixiacom.com/company/blog/debugging-malware-windbg" >https://www.ixiacom.com/company/blog/debugging-malware-windbg</a></p>
+		<p><a href="https://docs.microsoft.com/en-us/previous-versions/ms809762(v=msdn.10)?redirectedfrom=MSDN" >https://docs.microsoft.com/en-us/previous-versions/ms809762(v=msdn.10)?redirectedfrom=MSDN</a></p>
+		<p><a href="https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#general-concepts" >https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#general-concepts</a></p>
+
+
+
+
+
+
+
+						</section>
+					</div>
+
+					<!-- Sidebar -->
+					<div id="sidebar" class="4u">
+						<section>
+							<header>
+								<h2>Blog posts</h2>
+							</header>
+							<ul class="style">
+								<li>
+
+									<p class="posted">February 6, 2021 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Transfer.html">File Transfer In Red Team/Penetration Testing</a></p>
+									<p class="posted">January 15, 2020 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="PE-file.html">PE Portable Executable File Format</a></p>
+									<p class="posted">November 14, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="crack.html">Cracking The PassFab RAR Software</a></p>
+									<p class="posted">March 3, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Forensics.html">Volatility: Extract Password From RAM</a></p>
+									<p class="posted">February 28, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows6.html">Windows Exploit Development Part VI</a></p>
+									<p class="posted">February 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows5.html">Windows Exploit Development Part V</a></p>
+									<p class="posted">January 22, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows4.html">Windows Exploit Development Part IV</a></p>
+									<p class="posted">January 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows3.html">Windows Exploit Development Part III</a></p>
+									<p class="posted">January 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows2.html">Windows Exploit Development Part II</a></p>
+									<p class="posted">January 1, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="WED.html">Windows Exploit Development Part I</a></p>
+									<p class="posted">December 11, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Shellcode1.html">How to create your shellcode part II</a></p>
+									<p class="posted">January 9, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Shellcode.html">How to create your own shellcode part I</a></p>
+									<p class="posted">January 4, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Ubuntu.html">The Linux Commands you should NEVER use</a></p>
+									<p class="posted">January 3, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Nmap.html">Nmap Firewall Scan</a></p>
+								</li>
+							</ul>
+						</section>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Footer -->
+
+		<!-- Copyright -->
+		<div id="copyright">
+			<div class="container">
+					Copyright &copy 2021 T3jv1l. All Rights Reserved. Created and designed by Mr.Leritaite.
+			</div>
+		</div>
+
+	</body>
+</html>

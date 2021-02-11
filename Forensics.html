@@ -1,0 +1,154 @@
+<!DOCTYPE HTML>
+<!--
+	Iridium by TEMPLATED
+    templated.co @templatedco
+    Released for free under the Creative Commons Attribution 3.0 license (templated.co/license)
+-->
+<html>
+	<head>
+		<title>NutCrackers Security</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta name="description" content="" />
+		<meta name="keywords" content="" />
+		<link href='http://fonts.googleapis.com/css?family=Arimo:400,700' rel='stylesheet' type='text/css'>
+		<!--[if lte IE 8]><script src="js/html5shiv.js"></script><![endif]-->
+
+			<link rel="stylesheet" href="css/skel-noscript.css" />
+			<link rel="stylesheet" href="css/posts.css" />
+			<link rel="stylesheet" href="css/style-desktop.css" />
+		<!--[if lte IE 8]><link rel="stylesheet" href="css/ie/v8.css" /><![endif]-->
+		<!--[if lte IE 9]><link rel="stylesheet" href="css/ie/v9.css" /><![endif]-->
+		<!--<link rel="stylesheet" href="styles/ocean.css">-->
+		<link rel="stylesheet" href="styles/srcery.css">
+		<script src="highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+	</head>
+	<body class="homepage">
+
+		<!-- Header -->
+		<div>
+			<div class="container">
+
+				<!-- Logo -->
+				<div>
+					<ul class="default">
+						<li><a href="index.html">Home</a></li>
+						<li><a href="blog.html">Blog</a></li>
+						<li><a href="archive.html">Archive</a></li>
+					</ul>
+				</div>
+
+				<!-- Nav -->
+			</div>
+		</div>
+
+		<!-- Main -->
+		<div id="main">
+			<div class="container">
+				<div class="row">
+
+					<!-- Content -->
+					<div id="content" class="8u skel-cell-important">
+						<section>
+							<header>
+								<span class="byline"><a href="Forensics.html"><b>Volatility: Extract Password from RAM </a></b></span>
+								<p></p>
+									<img src="imagini/forensics.jpg" alt="" style="height:275px;width:580px;" />
+									<p>Hello everyone. Today i will speek about <b>Volatility: Extract Password from RAM</b> and more stuff like extract information about Windows 7 SP1x86 using <b>Volatility Framework.</b> This idea to extract information from ram memory is due to the University Professor who said something interesting: RAM can store information while the ROM is used for reading. Keep in mind, volatile memory, in contrast to non-volatile memory, is computer memory that requires power to maintain the stored information it retains its contents while powered on but when the power is interrupted, the stored data is quickly lost.</p>
+									<p>Maybe you ask , what is this volatility framework and for what is use? Volatility is an open source software programs for analyzing RAM (Random Access Memory) in 32 bit/64 bit systems. It supports analysis for Linux, Windows, Mac, and Android systems. It is based on Python and can be run on Windows, Linux, and Mac systems. It can analyze raw dumps, crash dumps, VMware dumps (.vmem), virtual box dumps, and many others.</p>
+									<p>First step we need to taking RAM Dump from Windows. I used <a href="https://qpdownload.com/dumpit/?fbclid=IwAR1l_gJfhfCjOc7rUhXXJCXg3UvU79IZaJkFD63DyJjt2exABKoRo0MgrSQ">DumpIt!</a></p>
+									<p><img src="imagini/forensics1.png"></p>
+									<p>Now is time for install Volatility Framework for analyze this raw file. For install is need require : To install this framework for Linux you need to install next dependencies and package. For Linux you may have to install a few other packages/libraries as prerequisites for the following recommended packages. Exemple <b>sudo apt-get install pcregrep libpcre++-dev python-dev -y</b> and packages like.</p>
+									<p>1) Distorm3 - Powerful Disassembler Library For x86/AMD64. </p>
+									<p>2) Yara - A malware identification and classification tool.</p>
+									<p>3) PyCrypto - The Python Cryptography Toolkit.</p>
+									<p>So I decide to make a little script in bash scripting for installing this tool. You can find here : <a href="https://github.com/T3jv1l/Volatility-Installer">https://github.com/T3jv1l/Volatility-Installer</a></p>
+									<p><img src="imagini/forensics2.png"  alt="" style="height:395px;width:900px;" ></p>
+									<p><img src="imagini/forensics3.png"  alt="" style="height:375px;width:580px;"></p>
+									<p><img src="imagini/forensics4.png"></p>
+									<p>For performing analysis using Volatility we need to first set a profile to tell Volatility what operating system the dump came from, such as Windows 7, Linux, Mac OS.</p>
+									<p><pre><code> ./vol.py imageino –f "Destination of the memory Dump"</pre></code></p>
+									<p><img src="imagini/forensics5.png"></p>
+									<p>We can see that Volatility suggests using the profile for Win7SP0x86, Win7SP1x86 </p>
+									<p>Now is time to use --profile=Win7SP1x86 and use hivelist to locate the virtual addresses of registry hives in memory, and the full paths to the corresponding hive on disk, use the hivelist command. For more information about Registry Hives check this link: <a href="https://docs.microsoft.com/en-us/windows/desktop/sysinfo/registry-hives">https://docs.microsoft.com/en-us/windows/desktop/sysinfo/registry-hives</a>.</p>
+									<p><img src="imagini/forensics6.png" alt="" style="height:230px;width:900px;"></p>
+									<p>What we have here? If you can see we look for to virtual address. Why I choose <b>%SystemRoot%/system32/config/SAM?</b> Because the user passwords are stored in a hashed format in a registry hive either as a LM hash or as a NTLM hash. This file can be found in %SystemRoot%/system32/config/SAM and is mounted on HKLM/SAM. Here we have <b>0x96754008</b>.</p>
+									<p>Registry Machine System  contain inside HKLM\SYSTEM\CurrentControlSet\Control\hivelist.The registry tree contains information for controlling system startup and some aspects of device configuration. Here we have <b>0x8ac1c008</b></p>
+									<p>Now we use <b>hashdump for get creds.</b>To use hashdump, pass the virtual address of the SYSTEM hive as -y and the virtual address of the SAM hive as -s, like this:</p>
+									<p><img src="imagini/forensics7.png" alt="" style="height:120px;width:900px;"></p>
+									<p>Boom we have a credentials about password , i made a little video about this technique, you can found here : <a href="https://youtu.be/YVv2B4D_ysg">https://youtu.be/YVv2B4D_ysg</a></p>
+									<p><img src="imagini/forensics8.png"></p>
+									<p>Decrypt this hash and boom we have password in clear text!!</p>
+									<p><img src="imagini/forensics9.png"></p>
+									<p>I hope you like this article about Forensics and sorry for my bad English , i am not a native speaker (Happy Hack)</p>
+
+
+	<h1><b>References!!</b></h1>
+	<p><a href="https://github.com/volatilityfoundation/volatility/wiki/Command-Reference#hashdump">https://github.com/volatilityfoundation/volatility/wiki/Command-Reference#hashdump</a></p>
+	<p><a href="https://resources.infosecinstitute.com/memory-forensics-and-analysis-using-volatility/?fbclid=IwAR1_po75pLlt5Yg_eJOtKtaR93-lgsi8SsoIaR6t832zAtPDCQf_zsuPrSE#gref">https://resources.infosecinstitute.com/memory-forensics-and-analysis-using-volatility/?fbclid=IwAR1_po75pLlt5Yg_eJOtKtaR93-lgsi8SsoIaR6t832zAtPDCQf_zsuPrSE#gref</a></p>
+		<p><a href="https://www.andreafortuna.org/dfir/forensics/how-to-extract-a-ram-dump-from-a-running-virtualbox-machine/?fbclid=IwAR3V-48WZspdCtOPkqW8xpjMeG3o4rntOj4mDahVAfy5SoG5_hPJQCfwkPA">https://www.andreafortuna.org/dfir/forensics/how-to-extract-a-ram-dump-from-a-running-virtualbox-machine/?fbclid=IwAR3V-48WZspdCtOPkqW8xpjMeG3o4rntOj4mDahVAfy5SoG5_hPJQCfwkPA</a></p>
+			<p><a href="https://github.com/T3jv1l/Volatility-Installer">https://github.com/T3jv1l/Volatility-Installer</a></p>
+
+
+
+
+						</section>
+					</div>
+
+					<!-- Sidebar -->
+					<div id="sidebar" class="4u">
+						<section>
+							<header>
+								<h2>Blog posts</h2>
+							</header>
+							<ul class="style">
+								<li>
+
+																		<p class="posted">February 6, 2021 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Transfer.html">File Transfer In Red Team/Penetration Testing</a></p>
+																		<p class="posted">January 15, 2020 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="PE-file.html">PE Portable Executable File Format</a></p>
+																		<p class="posted">November 14, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="crack.html">Cracking The PassFab RAR Software</a></p>
+																		<p class="posted">March 3, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Forensics.html">Volatility: Extract Password From RAM</a></p>
+																		<p class="posted">February 28, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows6.html">Windows Exploit Development Part VI</a></p>
+																		<p class="posted">February 16, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows5.html">Windows Exploit Development Part V</a></p>
+																		<p class="posted">January 22, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows4.html">Windows Exploit Development Part IV</a></p>
+																		<p class="posted">January 16, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows3.html">Windows Exploit Development Part III</a></p>
+																		<p class="posted">January 16, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Windows2.html">Windows Exploit Development Part II</a></p>
+																		<p class="posted">January 1, 2019 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="WED.html">Windows Exploit Development Part I</a></p>
+																		<p class="posted">December 11, 2018 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Shellcode1.html">How to create your shellcode part II</a></p>
+																		<p class="posted">January 9, 2018 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Shellcode.html">How to create your own shellcode part I</a></p>
+																		<p class="posted">January 4, 2018 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Ubuntu.html">The Linux Commands you should NEVER use</a></p>
+																		<p class="posted">January 3, 2018 </p>
+																		<p class="text" style="bottom:10px; position: relative"><a href="Nmap.html">Nmap Firewall Scan</a></p>
+								</li>
+							</ul>
+						</section>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Footer -->
+
+		<!-- Copyright -->
+		<div id="copyright">
+			<div class="container">
+					Copyright &copy 2021 T3jv1l. All Rights Reserved. Created and designed by Mr.Leritaite.
+			</div>
+		</div>
+
+	</body>
+</html>
