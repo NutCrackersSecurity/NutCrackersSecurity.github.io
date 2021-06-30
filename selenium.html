@@ -58,8 +58,7 @@
 									                <p>Hello everyone T3jv1l here, today I will share a few notes about selenium. I will show you a case I encountered doing penetration testing and how I was able to get LFI and RCE in Selenium Grid.
                                     <p>Prepare a lab environment. Install java from  <b><a href=https://www.java.com/download/ie_manual.jsp>((https://www.java.com/download/ie_manual.jsp))</a></b>. Download the latest version of Selenium Grid <b><a href="https://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar">((https://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar))</a></b>. Download the webdrive version of your browser. If you don't know your version, download any version and when you run selenium it will give you the error that you don't have version X installed and you will reinstall it <b><a href="https://chromedriver.chromium.org/downloads">((https://chromedriver.chromium.org/downloads))</a></b></p>
                                     <p></p><p>Start selenium:</p>
-<p><pre><code>java -jar C:\Users\nutcrackers\Downloads\selenium-server-standalone-3.141.59.jar -role node -hub http://127.0.0.1:4444/grid/register -browser "browserName=firefox,maxInstances=3,platform=WINDOWS" -browser "browserName=chrome,maxInstances=2,platform=WINDOWS" -Dwebdriver.chrome.driver="C:\Selenium\chromedriver.exe"
-</pre></code></p>
+<p><pre><code>java -Dwebdriver.chrome.driver="C:\Selenium\chromedriver.exe" -jar  C:\Users\nutcrackers\Downloads\selenium-server-standalone-3.141.59.jar</pre></code></p>
 <br></br>
 <p><img src="imagini/selenium1.png" /></p>
 <img src="imagini/selenium2.png" alt=""  style="height:275px;width:790px;"/>
