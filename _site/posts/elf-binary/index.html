@@ -1,0 +1,1132 @@
+<h2 id="what-is-executable-and-linkable-format-elf">What is Executable and Linkable Format ELF?</h2>
+
+<p>Executable and Linkable Format (ELF) is a standard file format designed for executable files, object code, shared libraries and core dumps. This format was adopted especially for UNIX operating systems. ELF file is an extremely flexible format for representing binary code in a system, following the ELF standard you can represent a kernel binary just as easily as a normal executable or a system library.</p>
+
+<p><strong>Kernel is the main component of a Linux Operating System (OS) and is the core interface between a computer’s hardware and process. (You can compare Kernel to a human heart)</strong></p>
+
+<p>ELF format is in use by several different operating systems like:</p>
+<ul>
+  <li>OpenBSD</li>
+  <li>QNX</li>
+  <li>Fuchsia</li>
+  <li>Debian</li>
+  <li>Ubuntu and more.</li>
+</ul>
+
+<p>The specification does not clarify the filename extension for the ELF file. Exist a variety of letter combinations as: .axf, .bin, .elf, .o, .prx, .puff, .ko, .so, and .mod, or none.</p>
+
+<p>Before understanding the Structure of an ELF binary let’s try to understand what is the “<strong>Object Code</strong> and <strong>Shared Libraries</strong>”.</p>
+
+<h2 id="what-is-object-code-or-machine-code">What is Object Code or Machine Code?</h2>
+
+<p>Object Code is the output of a compiler after the source code is compiled. The Object Code is also called Machine Code. This instruction can be understood directly by the CPU (Central Processing Unit). Sometimes, like a human, the Computer has its own language. To execute the instruction the computer needs to know how to do that, for this Object Code is made.</p>
+
+<p>Example of the source code:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+</pre></td><td class="rouge-code"><pre><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(){</span>
+
+  <span class="n">printf</span><span class="p">(</span><span class="s">"Secret of the ELF Binary!</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span> 
+<span class="p">}</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>The basic command for compiling a file containing an Object File is “<strong>gcc</strong>”. You specify the <strong>-c</strong> argument to tell gcc to compile, but not link, the file. The result of a successful compilation is an object file, which has the same name as the source file but an extension of <strong>.o</strong>.</p>
+
+<p><img src="/assets/img/headers/elf-file/elf1.png" alt="elf" /></p>
+
+<p>Using <code class="language-plaintext highlighter-rouge">objdump</code> we can display the disassembled code of the .o file, showing both the hexadecimal machine code and the corresponding assembly instructions.</p>
+
+<p><img src="/assets/img/headers/elf-file/elf2.png" alt="elf" /></p>
+
+<h2 id="what-is-a-shared-library-file">What is a Shared Library File?</h2>
+
+<p>Shared Libraries are libraries that can be linked to by any program during run-time. They enable the use of code that can be loaded from any location in the memory segment. The shared library code, once loaded, can be used by any number of programs. As a result, because a lot of code is kept common in the form of a shared library, program size and memory footprint can be kept low.</p>
+
+<p><strong>Note: Memory segmentation is a technique of the operating system to manage memory into segments and sections. Segmentation is a reference to a memory location that includes a value that identifies a segment and an offset (memory location) within that segment.</strong></p>
+
+<p>Because the library code can be changed, modified, and recompiled without having to recompile the applications that use this library, shared libraries provide modularity to the development environment. A shared library can be accessed by a different name:</p>
+
+<ul>
+  <li>
+    <p>Name used by linker <strong>lib</strong> followed by the library name and followed by the extension <strong>.so</strong> (Exemple: <strong>/usr/lib/x86_64-linux-gnu/libc.so</strong>)</p>
+  </li>
+  <li>
+    <p>Fully qualified name or <strong>“so”</strong> name (Example: <strong>/lib/x86_64-linux-gnu/libc.so.6</strong>)</p>
+  </li>
+</ul>
+
+<p>The Standard location to find this library is:</p>
+
+<ul>
+  <li><strong>/lib</strong></li>
+  <li><strong>/usr/lib</strong></li>
+  <li><strong>/usr/local/lib</strong></li>
+</ul>
+
+<p>Let’s now delve into practical implementation by constructing a customized program coupled with our proprietary Shared Library.</p>
+
+<p>The initial phase entails crafting the essential headers, referred to as <strong>shared_elf.h</strong>, for our libraries. Within this header, we will define a singular function, named <strong>shared_ELF</strong>.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+</pre></td><td class="rouge-code"><pre><span class="cp">#ifndef shared_ELF_h__
+#define shared_ELF_h__
+</span> 
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">shared_ELF</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+ 
+<span class="cp">#endif  // shared_ELF_h__
+</span></pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>The second step is to create the shared_elf.c which contains the implementation of that function.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+</pre></td><td class="rouge-code"><pre><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span> 
+<span class="kt">void</span> <span class="nf">shared_ELF</span><span class="p">(</span><span class="kt">void</span><span class="p">){</span>
+  <span class="n">puts</span><span class="p">(</span><span class="s">"Ups you unlock the secret...."</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>The final step is to use our program (elf.c) from the previous exemple to print <strong>“Secret of the ELF Binary!”</strong> and adding the function <strong>shared_ELF()</strong>.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="rouge-code"><pre><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+#include</span> <span class="cpf">"shared_elf.h"</span><span class="cp">
+</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(){</span>
+
+  <span class="n">printf</span><span class="p">(</span><span class="s">"Secret of the ELF Binary!</span><span class="se">\n</span><span class="s">"</span><span class="p">);;</span>
+  <span class="n">shared_ELF</span><span class="p">();</span>
+
+<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>  
+<span class="p">}</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>We need to compile our library source code into Position-Independent Code.</p>
+
+<p><strong>Note: Creating shared libraries or executables that must be loaded at various memory locations in a process’s address space requires the use of a programming method known as position-independent code (PIC). Due to elements like address space layout randomization (ASLR) and the shared library mechanism, PIC is a crucial idea for contemporary computers.</strong></p>
+
+<p>For now we have 3 important files:</p>
+
+<p><img src="/assets/img/headers/elf-file/elf3.png" alt="elf" /></p>
+
+<p>Compile our library source code:</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>gcc <span class="nt">-c</span> <span class="nt">-Wall</span> <span class="nt">-Werror</span> <span class="nt">-fpic</span> shared_elf.c
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>Now we need to actually turn this Object File <strong>shared_elf.o</strong>  into a shared library. We will call it <strong>libshare.so</strong>:</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>gcc <span class="nt">-shared</span> <span class="nt">-o</span> libshare.so shared_elf.o
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p><img src="/assets/img/headers/elf-file/elf4.png" alt="elf" /></p>
+
+<p>We build our <strong>elf.c</strong> with a shared library, <strong>libshare.so</strong>, and link them together. To accomplish that, we must inform the GCC compiler of the location of the Shared Library.</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>gcc <span class="nt">-L</span> ~/elf/ <span class="nt">-Wall</span> <span class="nt">-o</span> elf elf.c <span class="nt">-lshare</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>Also to avoid errors when we run a program like this (<strong>./elf: error while loading shared libraries: libshare.so: cannot open shared object file: No such file or directory</strong>). We need to export the path where the <strong>LD_LYBRARY</strong> is because our loader doesn’t know where the <strong>.so</strong> file is.</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre><span class="nb">export </span><span class="nv">LD_LIBRARY_PATH</span><span class="o">=</span>~/elf/<span class="nv">$LD_LIBRARY_PATH</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p><img src="/assets/img/headers/elf-file/elf5.png" alt="elf" /></p>
+
+<p>We can see the Shared Library is loaded successfully, but we can see all the Shared Object dependencies the program loads using the <code class="language-plaintext highlighter-rouge">ldd</code> tool.</p>
+
+<p><img src="/assets/img/headers/elf-file/elf6.png" alt="elf" /></p>
+
+<h2 id="structure-of-an-elf-binary-file">Structure of an ELF binary file.</h2>
+
+<p>An ELF file has a “file header” which describes the file in general and then has pointers to each of the individual sections that make up the file. The ELF header for x64 architectures looks like this:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+</pre></td><td class="rouge-code"><pre><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+        <span class="kt">unsigned</span> <span class="kt">char</span>   <span class="n">e_ident</span><span class="p">[</span><span class="n">EI_NIDENT</span><span class="p">];</span>
+        <span class="n">Elf64_Half</span>      <span class="n">e_type</span><span class="p">;</span>
+        <span class="n">Elf64_Half</span>      <span class="n">e_machine</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">e_version</span><span class="p">;</span>
+        <span class="n">Elf64_Addr</span>      <span class="n">e_entry</span><span class="p">;</span>
+        <span class="n">Elf64_Off</span>       <span class="n">e_phoff</span><span class="p">;</span>
+        <span class="n">Elf64_Off</span>       <span class="n">e_shoff</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">e_flags</span><span class="p">;</span>
+        <span class="n">Elf64_Half</span>      <span class="n">e_ehsize</span><span class="p">;</span>
+        <span class="n">Elf64_Half</span>      <span class="n">e_phentsize</span><span class="p">;</span>
+        <span class="n">Elf64_Half</span>      <span class="n">e_phnum</span><span class="p">;</span>
+        <span class="n">Elf64_Half</span>      <span class="n">e_shentsize</span><span class="p">;</span>
+        <span class="n">Elf64_Half</span>      <span class="n">e_shnum</span><span class="p">;</span>
+        <span class="n">Elf64_Half</span>      <span class="n">e_shstrndx</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">Elf64_Ehdr</span><span class="p">;</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>Another information can be obtain using the <code class="language-plaintext highlighter-rouge">readelf</code> tool (readelf is a program which help as to show the header in the readable form):</p>
+
+<p><img src="/assets/img/headers/elf-file/elf7.png" alt="elf" /></p>
+
+<p>The <strong>e_ident[EI_NIDENT]</strong> is the first thing in any ELF file, and it always begins with a few “magic” bytes. The first byte is <strong>0x7F</strong>, and the following three bytes are <strong>“ELF”</strong>. You can see this for yourself by inspecting an ELF binary with something like the <code class="language-plaintext highlighter-rouge">hexdump/readelf</code> command.</p>
+
+<p><img src="/assets/img/headers/elf-file/elf8.png" alt="elf" /></p>
+
+<p><img src="/assets/img/headers/elf-file/elf9.png" alt="elf" /></p>
+
+<p>If you take a look at the code and the readelf section we can see a similar pattern:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Description</th>
+      <th>Correspondence</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>e_type</td>
+      <td>Type of file</td>
+      <td>Corresponds with file type (readelf section Class)</td>
+    </tr>
+    <tr>
+      <td>e_machine</td>
+      <td>Type of system architecture</td>
+      <td>Corresponds with system type (readelf OS/ABI section)</td>
+    </tr>
+    <tr>
+      <td>e_version</td>
+      <td>Original version of ELF file</td>
+      <td>Corresponds with version (readelf Version section)</td>
+    </tr>
+    <tr>
+      <td>e_entry</td>
+      <td>Memory address of entry point</td>
+      <td>Entry point of process execution (readelf Entry Point Section)</td>
+    </tr>
+    <tr>
+      <td>e_phoff</td>
+      <td>Offset to the start of program header table</td>
+      <td>Start of the program header table</td>
+    </tr>
+    <tr>
+      <td>e_shoff</td>
+      <td>Offset to the start of section header table</td>
+      <td>Start of the section table</td>
+    </tr>
+    <tr>
+      <td>e_flags</td>
+      <td>Flags specific to the architecture</td>
+      <td>Architecture-specific flags</td>
+    </tr>
+    <tr>
+      <td>e_ehsize</td>
+      <td>Size of the ELF header</td>
+      <td>Header size based on architecture</td>
+    </tr>
+    <tr>
+      <td>e_phentsize</td>
+      <td>Size of a program header table entry</td>
+      <td>Size of a program header entry</td>
+    </tr>
+    <tr>
+      <td>e_phnum</td>
+      <td>Number of entries in the program header table</td>
+      <td>Number of program header entries</td>
+    </tr>
+    <tr>
+      <td>e_shentsize</td>
+      <td>Size of a section header table entry</td>
+      <td>Size of a section header entry</td>
+    </tr>
+    <tr>
+      <td>e_shnum</td>
+      <td>Number of entries in the section header table</td>
+      <td>Number of section header entries</td>
+    </tr>
+    <tr>
+      <td>e_shstrndx</td>
+      <td>Index of the entry containing section names in the section header table</td>
+      <td>Index of section containing section names</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The header structures contain another two sections:</p>
+
+<ul>
+  <li><strong>Program headers table</strong> that segment describes how to create a process and memory image on the runtime execution.</li>
+  <li><strong>Section headers table</strong> defines all the sections in the file and is used for linking and relocation.</li>
+</ul>
+
+<p>Graphic representation of the ELF Structures format:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Section</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ELF Header</td>
+      <td>Header information about the ELF file</td>
+    </tr>
+    <tr>
+      <td>Program Header Table</td>
+      <td>Describes program segments</td>
+    </tr>
+    <tr>
+      <td>.text</td>
+      <td>Executable instructions</td>
+    </tr>
+    <tr>
+      <td>.rodata</td>
+      <td>Read-only data</td>
+    </tr>
+    <tr>
+      <td>…….</td>
+      <td>Other sections (if applicable)</td>
+    </tr>
+    <tr>
+      <td>.data</td>
+      <td>Initialized data</td>
+    </tr>
+    <tr>
+      <td>Section Header Table</td>
+      <td>Describes sections</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Let’s create our own basic script that displays the ELF header format. The logic of the script is simple, we can use the <a href="https://github.com/eliben/pyelftools">pyelftools</a> to get all the information needed about the ELF format. First, we need to create a function that is able to parse/read hex format. Another function “byte2int()”  return the value of the b variable. Now the main function is to open the file in bytes format and print all the headers.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+</pre></td><td class="rouge-code"><pre><span class="kn">import</span> <span class="n">sys</span>
+<span class="kn">from</span> <span class="n">elftools.elf.elffile</span> <span class="kn">import</span> <span class="n">ELFFile</span>
+<span class="kn">from</span> <span class="n">elftools.elf.descriptions</span> <span class="kn">import</span> <span class="p">(</span>
+	<span class="n">describe_ei_class</span><span class="p">,</span> <span class="n">describe_ei_data</span><span class="p">,</span> <span class="n">describe_ei_version</span><span class="p">,</span>
+	<span class="n">describe_ei_osabi</span><span class="p">,</span> <span class="n">describe_e_type</span><span class="p">,</span> <span class="n">describe_e_machine</span><span class="p">,</span>
+	<span class="n">describe_e_version_numeric</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">fieldsize</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lead0x</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">alternate</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+           	 
+    <span class="k">if</span> <span class="n">alternate</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">addr</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">lead0x</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lead0x</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">fieldsize</span> <span class="o">-=</span> <span class="mi">2</span>
+
+    <span class="n">s</span> <span class="o">=</span> <span class="sh">'</span><span class="s">0x</span><span class="sh">'</span> <span class="k">if</span> <span class="n">lead0x</span> <span class="k">else</span> <span class="sh">''</span>
+    <span class="k">if</span> <span class="n">fullhex</span><span class="p">:</span>
+        <span class="n">fieldsize</span> <span class="o">=</span> <span class="mi">8</span> <span class="k">if</span> <span class="n">elffile</span><span class="p">.</span><span class="n">elfclass</span> <span class="o">==</span> <span class="mi">32</span> <span class="k">else</span> <span class="mi">16</span>
+    <span class="k">if</span> <span class="n">fieldsize</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">field</span> <span class="o">=</span> <span class="sh">'</span><span class="s">%x</span><span class="sh">'</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">field</span> <span class="o">=</span> <span class="sh">'</span><span class="s">%</span><span class="sh">'</span> <span class="o">+</span> <span class="sh">'</span><span class="s">0%sx</span><span class="sh">'</span> <span class="o">%</span> <span class="n">fieldsize</span>
+    <span class="k">return</span> <span class="n">s</span> <span class="o">+</span> <span class="n">field</span> <span class="o">%</span> <span class="n">addr</span>
+
+<span class="k">def</span> <span class="nf">byte2int</span><span class="p">(</span><span class="n">b</span><span class="p">):</span> <span class="k">return</span> <span class="n">b</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="sh">'</span><span class="s">__main__</span><span class="sh">'</span><span class="p">:</span>
+   	 
+	<span class="nb">file</span> <span class="o">=</span> <span class="nf">open</span><span class="p">(</span><span class="sh">"</span><span class="s">./elf</span><span class="sh">"</span><span class="p">,</span> <span class="sh">'</span><span class="s">rb</span><span class="sh">'</span><span class="p">)</span>
+	<span class="n">elffile</span> <span class="o">=</span> <span class="nc">ELFFile</span><span class="p">(</span><span class="nb">file</span><span class="p">)</span>
+
+   	 
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">ELF Header:</span><span class="sh">'</span><span class="p">)</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Magic:   </span><span class="sh">'</span><span class="p">)</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s"> </span><span class="sh">'</span><span class="p">.</span><span class="nf">join</span><span class="p">(</span><span class="sh">'</span><span class="s">%2.2x</span><span class="sh">'</span> <span class="o">%</span> <span class="nf">byte2int</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+            	<span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">elffile</span><span class="p">.</span><span class="n">e_ident_raw</span><span class="p">))</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  	</span><span class="sh">'</span><span class="p">)</span>
+	<span class="n">header</span> <span class="o">=</span> <span class="n">elffile</span><span class="p">.</span><span class="n">header</span>
+	<span class="n">e_ident</span> <span class="o">=</span> <span class="n">header</span><span class="p">[</span><span class="sh">'</span><span class="s">e_ident</span><span class="sh">'</span><span class="p">]</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Class:                         	%s</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="nf">describe_ei_class</span><span class="p">(</span><span class="n">e_ident</span><span class="p">[</span><span class="sh">'</span><span class="s">EI_CLASS</span><span class="sh">'</span><span class="p">]))</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Data:                          	%s</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="nf">describe_ei_data</span><span class="p">(</span><span class="n">e_ident</span><span class="p">[</span><span class="sh">'</span><span class="s">EI_DATA</span><span class="sh">'</span><span class="p">]))</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Version:                       	%s</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="nf">describe_ei_version</span><span class="p">(</span><span class="n">e_ident</span><span class="p">[</span><span class="sh">'</span><span class="s">EI_VERSION</span><span class="sh">'</span><span class="p">]))</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  OS/ABI:                        	%s</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="nf">describe_ei_osabi</span><span class="p">(</span><span class="n">e_ident</span><span class="p">[</span><span class="sh">'</span><span class="s">EI_OSABI</span><span class="sh">'</span><span class="p">]))</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  ABI Version:                   	%d</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="n">e_ident</span><span class="p">[</span><span class="sh">'</span><span class="s">EI_ABIVERSION</span><span class="sh">'</span><span class="p">])</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Type:                          	%s</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="nf">describe_e_type</span><span class="p">(</span><span class="n">header</span><span class="p">[</span><span class="sh">'</span><span class="s">e_type</span><span class="sh">'</span><span class="p">]))</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Machine:                       	%s</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="nf">describe_e_machine</span><span class="p">(</span><span class="n">header</span><span class="p">[</span><span class="sh">'</span><span class="s">e_machine</span><span class="sh">'</span><span class="p">]))</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Version:                       	%s</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="nf">describe_e_version_numeric</span><span class="p">(</span><span class="n">header</span><span class="p">[</span><span class="sh">'</span><span class="s">e_version</span><span class="sh">'</span><span class="p">]))</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Entry point address:           	%s</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span> <span class="n">header</span><span class="p">[</span><span class="sh">'</span><span class="s">e_entry</span><span class="sh">'</span><span class="p">]))</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Start of program headers:      	%s</span><span class="sh">'</span> <span class="o">%</span>
+        	<span class="n">header</span><span class="p">[</span><span class="sh">'</span><span class="s">e_phoff</span><span class="sh">'</span><span class="p">])</span>
+	<span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s"> (bytes into self)</span><span class="sh">'</span><span class="p">)</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p><img src="/assets/img/headers/elf-file/elf10.png" alt="elf" /></p>
+
+<h3 id="program-headers-table">Program Headers Table</h3>
+
+<p>An ELF file is made up of zero or more segments that describe how to create a process or memory image for execution at runtime. When the kernel detects these segments, it uses the mmap(2) system call to map them into virtual address space. To put it another way, it converts predefined instructions into a memory image. These program headers are required if your ELF file is a normal binary. Otherwise, it will simply not run. It constructs a process from these headers and the underlying data structure. This procedure is similar to that of shared libraries.</p>
+
+<p><strong>Note: mmap syscall it’s used to create a new mapping in the virtual address space of the calling process. The starting address for the new mapping is specified in addr. The length argument specifies the length of the mapping (which must be greater than 0).</strong></p>
+
+<p>The elements of this structure are:</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+</pre></td><td class="rouge-code"><pre><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+        <span class="n">Elf64_Word</span>      <span class="n">p_type</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">p_flags</span><span class="p">;</span>
+        <span class="n">Elf64_Off</span>       <span class="n">p_offset</span><span class="p">;</span>
+        <span class="n">Elf64_Addr</span>      <span class="n">p_vaddr</span><span class="p">;</span>
+        <span class="n">Elf64_Addr</span>      <span class="n">p_paddr</span><span class="p">;</span>
+        <span class="n">Elf64_Xword</span>     <span class="n">p_filesz</span><span class="p">;</span>
+        <span class="n">Elf64_Xword</span>     <span class="n">p_memsz</span><span class="p">;</span>
+        <span class="n">Elf64_Xword</span>     <span class="n">p_align</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">Elf64_Phdr</span><span class="p">;</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>A brief and simplified guide to understanding the meaning of each section:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>p_type</td>
+      <td>Describes how to interpret the array element’s information.</td>
+    </tr>
+    <tr>
+      <td>p_offset</td>
+      <td>Offset from the beginning of the file at which the first byte of the segment resides.</td>
+    </tr>
+    <tr>
+      <td>p_vaddr</td>
+      <td>Virtual address at which the first byte of the segment resides in memory.</td>
+    </tr>
+    <tr>
+      <td>p_paddr</td>
+      <td>Physical address for systems in which physical addressing is relevant.</td>
+    </tr>
+    <tr>
+      <td>p_filesz</td>
+      <td>Number of bytes in the file image of the segment, which can be zero.</td>
+    </tr>
+    <tr>
+      <td>p_memsz</td>
+      <td>Number of bytes in the memory image of the segment, which can be zero.</td>
+    </tr>
+    <tr>
+      <td>p_flags</td>
+      <td>Flags relevant to the segment.</td>
+    </tr>
+    <tr>
+      <td>p_align</td>
+      <td>Loadable process segments must have congruent values for p_vaddr and p_offset, modulo the page size.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Another piece of information about the Program Header Table can be obtained using the readelf tool:</p>
+
+<p><img src="/assets/img/headers/elf-file/elf11.png" alt="elf" /></p>
+
+<p><span style="color:green;">Green</span> color represents the Header Table, <span style="color:yellow;">yellow</span> color represents the structure of the header and <span style="color:red;">red</span> color represents the permission of the section. As you can see we have in column type some notation:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Segment Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>pt_PHDR</td>
+      <td>Specifies the location and size of the program header table, both in the file and in the program’s memory image. This segment type can only appear once in a file. Furthermore, it can occur only if the program header table is part of the program’s memory image. If present, this type must come before any loadable segment entry.</td>
+    </tr>
+    <tr>
+      <td>pt_INTERP</td>
+      <td>The location and size of a null-terminated path name to use as an interpreter. This segment type is required for dynamic executable files and may also appear in shared objects. It can only appear once in a file. If present, this type must come before any loadable segment entry.</td>
+    </tr>
+    <tr>
+      <td>pt_LOAD</td>
+      <td>Describes a loadable segment using p_filesz and p_memsz. The bytes from the file are assigned to the start of the memory segment. If the memory size (p_memsz) of the segment is greater than the file size (p_filesz), the extra bytes are defined to hold the value 0 and to follow the segment’s initialized area. The file size cannot be greater than the available memory. Loadable segment entries in the program header table are sorted on the p vaddr member and appear in ascending order.</td>
+    </tr>
+    <tr>
+      <td>pt_DYNAMIC</td>
+      <td>Specifies dynamic linking information.</td>
+    </tr>
+    <tr>
+      <td>pt_NOTE</td>
+      <td>Specifies the location and size of auxiliary information.</td>
+    </tr>
+    <tr>
+      <td>GNU_EH_FRAME</td>
+      <td>This is a sorted queue that the GNU C compiler uses (gcc). It keeps track of exception handlers. So, if something goes wrong, it can use this area to deal with it properly.</td>
+    </tr>
+    <tr>
+      <td>GNU_STACK</td>
+      <td>This header contains stack information. The stack is a buffer or scratch location where items such as local variables are stored. LIFO (Last In, First Out) will cause this, similar to stacking boxes on top of each other. A block is reserved when a process function is started.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Let’s create our own basic script that displays the ELF Program header table. The logic of the script is simple, we can use the <a href="https://github.com/eliben/pyelftools">pyelftools</a> to get all the information needed about the ELF format. First, we need to create a function that is able to parse/read hex format. Now the main function is to open the file in bytes format but is not enough just to open the binary, we need to parse the segment section, to do that we use iteration to read all the program headers.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+</pre></td><td class="rouge-code"><pre><span class="kn">import</span> <span class="n">sys</span>
+<span class="kn">from</span> <span class="n">elftools.elf.elffile</span> <span class="kn">import</span> <span class="n">ELFFile</span>
+<span class="kn">from</span> <span class="n">elftools.elf.segments</span> <span class="kn">import</span> <span class="n">Segment</span>
+<span class="kn">from</span> <span class="n">elftools.elf.descriptions</span> <span class="kn">import</span> <span class="n">describe_p_flags</span>
+
+<span class="k">def</span> <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">fieldsize</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lead0x</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">alternate</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+
+    <span class="k">if</span> <span class="n">alternate</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">addr</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">lead0x</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lead0x</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">fieldsize</span> <span class="o">-=</span> <span class="mi">2</span>
+
+    <span class="n">s</span> <span class="o">=</span> <span class="sh">'</span><span class="s">0x</span><span class="sh">'</span> <span class="k">if</span> <span class="n">lead0x</span> <span class="k">else</span> <span class="sh">''</span>
+    <span class="k">if</span> <span class="n">fullhex</span><span class="p">:</span>
+        <span class="n">fieldsize</span> <span class="o">=</span> <span class="mi">8</span> <span class="k">if</span> <span class="n">elffile</span><span class="p">.</span><span class="n">elfclass</span> <span class="o">==</span> <span class="mi">32</span> <span class="k">else</span> <span class="mi">16</span>
+        <span class="k">if</span> <span class="n">fieldsize</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">field</span> <span class="o">=</span> <span class="sh">'</span><span class="s">%x</span><span class="sh">'</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">field</span> <span class="o">=</span> <span class="sh">'</span><span class="s">%</span><span class="sh">'</span> <span class="o">+</span> <span class="sh">'</span><span class="s">0%sx</span><span class="sh">'</span> <span class="o">%</span> <span class="n">fieldsize</span>
+        <span class="k">return</span> <span class="n">s</span> <span class="o">+</span> <span class="n">field</span> <span class="o">%</span> <span class="n">addr</span>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="sh">'</span><span class="s">__main__</span><span class="sh">'</span><span class="p">:</span>
+
+    <span class="nb">file</span> <span class="o">=</span> <span class="nf">open</span><span class="p">(</span><span class="sh">"</span><span class="s">./elf</span><span class="sh">"</span><span class="p">,</span> <span class="sh">'</span><span class="s">rb</span><span class="sh">'</span><span class="p">)</span>
+    <span class="n">elffile</span> <span class="o">=</span> <span class="nc">ELFFile</span><span class="p">(</span><span class="nb">file</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">segment</span> <span class="ow">in</span> <span class="n">elffile</span><span class="p">.</span><span class="nf">iter_segments</span><span class="p">():</span>
+        <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  Type       	Offset         	VirtAddr       	PhysAddr</span><span class="sh">'</span><span class="p">)</span>
+        <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">             	FileSiz        	MemSiz          	Flags  Align</span><span class="sh">'</span><span class="p">)</span>
+        <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">%s %s %s</span><span class="sh">'</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">segment</span><span class="p">[</span><span class="sh">'</span><span class="s">p_offset</span><span class="sh">'</span><span class="p">],</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
+        <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">segment</span><span class="p">[</span><span class="sh">'</span><span class="s">p_vaddr</span><span class="sh">'</span><span class="p">],</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
+        <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">segment</span><span class="p">[</span><span class="sh">'</span><span class="s">p_paddr</span><span class="sh">'</span><span class="p">],</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">True</span><span class="p">)))</span>
+        <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">             	%s %s  %-3s	%s</span><span class="sh">'</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">segment</span><span class="p">[</span><span class="sh">'</span><span class="s">p_filesz</span><span class="sh">'</span><span class="p">],</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
+        <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">segment</span><span class="p">[</span><span class="sh">'</span><span class="s">p_memsz</span><span class="sh">'</span><span class="p">],</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
+        <span class="nf">describe_p_flags</span><span class="p">(</span><span class="n">segment</span><span class="p">[</span><span class="sh">'</span><span class="s">p_flags</span><span class="sh">'</span><span class="p">]),</span>
+        <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">segment</span><span class="p">[</span><span class="sh">'</span><span class="s">p_align</span><span class="sh">'</span><span class="p">],</span> <span class="n">lead0x</span><span class="o">=</span><span class="bp">False</span><span class="p">)))</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p><img src="/assets/img/headers/elf-file/elf12.png" alt="elf" /></p>
+
+<h3 id="segment-headers-table">Segment Headers Table</h3>
+
+<p>The Section Header Table is an array with each entry pointing to one of the ELF file’s sections. In this section is all information needed for linking a target Object File in order to build a working executable.</p>
+
+<p><strong>Note: It’s important to highlight that section headers are needed on link-time but they are not needed on runtime.</strong></p>
+
+<p>The elements of this structure are:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+</pre></td><td class="rouge-code"><pre><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+        <span class="n">Elf64_Word</span>      <span class="n">sh_name</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">sh_type</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">sh_flags</span><span class="p">;</span>
+        <span class="n">Elf64_Addr</span>      <span class="n">sh_addr</span><span class="p">;</span>
+        <span class="n">Elf64_Off</span>       <span class="n">sh_offset</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">sh_size</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">sh_link</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">sh_info</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">sh_addralign</span><span class="p">;</span>
+        <span class="n">Elf64_Word</span>      <span class="n">sh_entsize</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">Elf64_Shdr</span><span class="p">;</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>A brief and simplified guide to understanding the meaning of each section:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>sh_name</td>
+      <td>The name of the section. Its value is an index into the section header string table section giving the location of a null-terminated string.</td>
+    </tr>
+    <tr>
+      <td>sh_type</td>
+      <td>Categorizes the section’s contents and semantics.</td>
+    </tr>
+    <tr>
+      <td>sh_flags</td>
+      <td>Describes miscellaneous attributes.</td>
+    </tr>
+    <tr>
+      <td>sh_addr</td>
+      <td>If the section is to appear in the memory image of a process, this member gives the address at which the section’s first byte should reside. Otherwise, the member contains 0.</td>
+    </tr>
+    <tr>
+      <td>sh_offset</td>
+      <td>The byte offset from the beginning of the file to the first byte in the section.</td>
+    </tr>
+    <tr>
+      <td>sh_link</td>
+      <td>A section header table index link, whose interpretation depends on the section type.</td>
+    </tr>
+    <tr>
+      <td>sh_info</td>
+      <td>Extra information, whose interpretation depends on the section type.</td>
+    </tr>
+    <tr>
+      <td>sh_addralign</td>
+      <td>Some sections have address alignment constraints. For example, if a section holds a double word, the system must ensure double-word alignment for the entire section. That is, the value of sh_addr must be congruent to 0, modulo the value of sh_addralign. Currently, only 0 and positive integral powers of two are allowed. Values 0 and 1 mean the section has no alignment constraints.</td>
+    </tr>
+    <tr>
+      <td>sh_entsize</td>
+      <td>Some sections hold a table of fixed-size entries, such as a symbol table. For such a section, this member gives the size in bytes of each entry. The member contains 0 if the section does not hold a table of fixed-size entries.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Another piece of information about the <strong>Segment Header Table</strong> can be obtained using the <code class="language-plaintext highlighter-rouge">readelf</code>` tool:</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+</pre></td><td class="rouge-code"><pre>Section Headers:
+  <span class="o">[</span>Nr] Name              Type             Address           Offset
+       Size              EntSize          Flags  Link  Info  Align
+  <span class="o">[</span> 0]                   NULL             0000000000000000  00000000
+       0000000000000000  0000000000000000           0     0     0
+  <span class="o">[</span> 1] .interp           PROGBITS         0000000000000318  00000318
+       000000000000001c  0000000000000000   A       0     0     1
+  <span class="o">[</span> 2] .note.gnu.pr[...] NOTE             0000000000000338  00000338
+       0000000000000030  0000000000000000   A       0     0     8
+  <span class="o">[</span> 3] .note.gnu.bu[...] NOTE             0000000000000368  00000368
+       0000000000000024  0000000000000000   A       0     0     4
+  <span class="o">[</span> 4] .note.ABI-tag     NOTE             000000000000038c  0000038c
+       0000000000000020  0000000000000000   A       0     0     4
+  <span class="o">[</span> 5] .gnu.hash         GNU_HASH         00000000000003b0  000003b0
+       0000000000000024  0000000000000000   A       6     0     8
+  <span class="o">[</span> 6] .dynsym           DYNSYM           00000000000003d8  000003d8
+       00000000000000c0  0000000000000018   A       7     1     8
+  <span class="o">[</span> 7] .dynstr           STRTAB           0000000000000498  00000498
+       00000000000000a4  0000000000000000   A       0     0     1
+  <span class="o">[</span> 8] .gnu.version      VERSYM           000000000000053c  0000053c
+       0000000000000010  0000000000000002   A       6     0     2
+  <span class="o">[</span> 9] .gnu.version_r    VERNEED          0000000000000550  00000550
+       0000000000000030  0000000000000000   A       7     1     8
+.........
+  <span class="o">[</span>20] .eh_frame         PROGBITS         0000000000002058  00002058
+       00000000000000ac  0000000000000000   A       0     0     8
+  <span class="o">[</span>21] .init_array       INIT_ARRAY       0000000000003da0  00002da0
+       0000000000000008  0000000000000008  WA       0     0     8
+  <span class="o">[</span>22] .fini_array       FINI_ARRAY       0000000000003da8  00002da8
+       0000000000000008  0000000000000008  WA       0     0     8
+  <span class="o">[</span>23] .dynamic          DYNAMIC          0000000000003db0  00002db0
+       0000000000000200  0000000000000010  WA       7     0     8
+  <span class="o">[</span>24] .got              PROGBITS         0000000000003fb0  00002fb0
+       0000000000000050  0000000000000008  WA       0     0     8
+  <span class="o">[</span>25] .data             PROGBITS         0000000000004000  00003000
+       0000000000000010  0000000000000000  WA       0     0     8
+  <span class="o">[</span>26] .bss              NOBITS           0000000000004010  00003010
+       0000000000000008  0000000000000000  WA       0     0     1
+  <span class="o">[</span>27] .comment          PROGBITS         0000000000000000  00003010
+       000000000000002b  0000000000000001  MS       0     0     1
+  <span class="o">[</span>28] .symtab           SYMTAB           0000000000000000  00003040
+       0000000000000378  0000000000000018          29    18     8
+  <span class="o">[</span>29] .strtab           STRTAB           0000000000000000  000033b8
+       00000000000001e4  0000000000000000           0     0     1
+  <span class="o">[</span>30] .shstrtab         STRTAB           0000000000000000  0000359c
+       000000000000011a  0000000000000000           0     0     1
+Key to Flags:
+  W <span class="o">(</span>write<span class="o">)</span>, A <span class="o">(</span>alloc<span class="o">)</span>, X <span class="o">(</span>execute<span class="o">)</span>, M <span class="o">(</span>merge<span class="o">)</span>, S <span class="o">(</span>strings<span class="o">)</span>, I <span class="o">(</span>info<span class="o">)</span>,
+  L <span class="o">(</span><span class="nb">link </span>order<span class="o">)</span>, O <span class="o">(</span>extra OS processing required<span class="o">)</span>, G <span class="o">(</span>group<span class="o">)</span>, T <span class="o">(</span>TLS<span class="o">)</span>,
+  C <span class="o">(</span>compressed<span class="o">)</span>, x <span class="o">(</span>unknown<span class="o">)</span>, o <span class="o">(</span>OS specific<span class="o">)</span>, E <span class="o">(</span>exclude<span class="o">)</span>,
+  D <span class="o">(</span>mbind<span class="o">)</span>, l <span class="o">(</span>large<span class="o">)</span>, p <span class="o">(</span>processor specific<span class="o">)</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Section</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>.bss</td>
+      <td>This section holds uninitialized data that contributes to the program’s memory image. By definition, the system initializes the data with zeros when the program begins to run.</td>
+    </tr>
+    <tr>
+      <td>.comment</td>
+      <td>This section holds version control information.</td>
+    </tr>
+    <tr>
+      <td>.data, .data1</td>
+      <td>These sections hold initialized data that contribute to the program’s memory image.</td>
+    </tr>
+    <tr>
+      <td>.debug</td>
+      <td>This section holds information for symbolic debugging. The contents are unspecified.</td>
+    </tr>
+    <tr>
+      <td>.dynamic</td>
+      <td>This section holds dynamic linking information.</td>
+    </tr>
+    <tr>
+      <td>.dynstr</td>
+      <td>This section holds strings needed for dynamic linking, most commonly the strings that represent symbol names.</td>
+    </tr>
+    <tr>
+      <td>.dynsym</td>
+      <td>This section holds the dynamic linking symbol table.</td>
+    </tr>
+    <tr>
+      <td>.fini</td>
+      <td>This section holds executable instructions that contribute to the process termination code.</td>
+    </tr>
+    <tr>
+      <td>.fini_array</td>
+      <td>This section holds an array of function pointers that contributes to termination for the executable/shared object.</td>
+    </tr>
+    <tr>
+      <td>.got</td>
+      <td>This section holds the global offset table.</td>
+    </tr>
+    <tr>
+      <td>.hash</td>
+      <td>This section holds a symbol hash table.</td>
+    </tr>
+    <tr>
+      <td>.init</td>
+      <td>This section holds executable instructions that contribute to the process initialization code.</td>
+    </tr>
+    <tr>
+      <td>.init_array</td>
+      <td>This section holds an array of function pointers for initialization of executable/shared object.</td>
+    </tr>
+    <tr>
+      <td>.interp</td>
+      <td>This section holds the path name of a program interpreter.</td>
+    </tr>
+    <tr>
+      <td>.note</td>
+      <td>This section holds information in a specified format.</td>
+    </tr>
+    <tr>
+      <td>.plt</td>
+      <td>This section holds the procedure linkage table.</td>
+    </tr>
+    <tr>
+      <td>.rela.dyn, .rela.plt</td>
+      <td>These sections hold relocation information.</td>
+    </tr>
+    <tr>
+      <td>.rodata, .rodata1</td>
+      <td>These sections hold read-only data that contributes to a non-writable segment in the process image.</td>
+    </tr>
+    <tr>
+      <td>.shstrtab</td>
+      <td>This section holds section names.</td>
+    </tr>
+    <tr>
+      <td>.strtab</td>
+      <td>This section holds strings, often symbol names.</td>
+    </tr>
+    <tr>
+      <td>.symtab</td>
+      <td>This section holds a symbol table.</td>
+    </tr>
+    <tr>
+      <td>.text</td>
+      <td>This section holds executable instructions of a program.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Let’s create our own basic script that displays the ELF Segment header table. The logic of the script is simple, we can use the <a href="https://github.com/eliben/pyelftools">pyelftools</a> to get all the information needed about the ELF format. First, we need to create a function that is able to parse/read hex format. Now the main function is to open the file in bytes format and just read the array section which contains the information.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+</pre></td><td class="rouge-code"><pre><span class="kn">import</span> <span class="n">sys</span>
+<span class="kn">from</span> <span class="n">elftools.elf.elffile</span> <span class="kn">import</span> <span class="n">ELFFile</span>
+<span class="kn">from</span> <span class="n">elftools.elf.descriptions</span> <span class="kn">import</span> <span class="p">(</span><span class="n">describe_sh_flags</span><span class="p">,</span><span class="n">describe_sh_type</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">fieldsize</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">lead0x</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+               <span class="n">alternate</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+              
+   <span class="k">if</span> <span class="n">alternate</span><span class="p">:</span>
+       <span class="k">if</span> <span class="n">addr</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+           <span class="n">lead0x</span> <span class="o">=</span> <span class="bp">False</span>
+       <span class="k">else</span><span class="p">:</span>
+           <span class="n">lead0x</span> <span class="o">=</span> <span class="bp">True</span>
+           <span class="n">fieldsize</span> <span class="o">-=</span> <span class="mi">2</span>
+
+   <span class="n">s</span> <span class="o">=</span> <span class="sh">'</span><span class="s">0x</span><span class="sh">'</span> <span class="k">if</span> <span class="n">lead0x</span> <span class="k">else</span> <span class="sh">''</span>
+   <span class="k">if</span> <span class="n">fullhex</span><span class="p">:</span>
+       <span class="n">fieldsize</span> <span class="o">=</span> <span class="mi">8</span> <span class="k">if</span> <span class="n">elffile</span><span class="p">.</span><span class="n">elfclass</span> <span class="o">==</span> <span class="mi">32</span> <span class="k">else</span> <span class="mi">16</span>
+   <span class="k">if</span> <span class="n">fieldsize</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+       <span class="n">field</span> <span class="o">=</span> <span class="sh">'</span><span class="s">%x</span><span class="sh">'</span>
+   <span class="k">else</span><span class="p">:</span>
+       <span class="n">field</span> <span class="o">=</span> <span class="sh">'</span><span class="s">%</span><span class="sh">'</span> <span class="o">+</span> <span class="sh">'</span><span class="s">0%sx</span><span class="sh">'</span> <span class="o">%</span> <span class="n">fieldsize</span>
+   <span class="k">return</span> <span class="n">s</span> <span class="o">+</span> <span class="n">field</span> <span class="o">%</span> <span class="n">addr</span>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="sh">'</span><span class="s">__main__</span><span class="sh">'</span><span class="p">:</span>
+
+   <span class="nb">file</span> <span class="o">=</span> <span class="nf">open</span><span class="p">(</span><span class="sh">"</span><span class="s">./elf</span><span class="sh">"</span><span class="p">,</span> <span class="sh">'</span><span class="s">rb</span><span class="sh">'</span><span class="p">)</span>
+   <span class="n">elffile</span> <span class="o">=</span> <span class="nc">ELFFile</span><span class="p">(</span><span class="nb">file</span><span class="p">)</span>
+   <span class="n">elfheader</span> <span class="o">=</span> <span class="n">elffile</span><span class="p">.</span><span class="n">header</span>
+   <span class="n">show_heading</span> <span class="o">=</span> <span class="bp">True</span>
+
+   <span class="k">if</span> <span class="n">show_heading</span><span class="p">:</span>
+       <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">There are %s section headers, starting at offset %s</span><span class="sh">'</span> <span class="o">%</span> <span class="p">(</span>
+           <span class="n">elfheader</span><span class="p">[</span><span class="sh">'</span><span class="s">e_shnum</span><span class="sh">'</span><span class="p">],</span><span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">elfheader</span><span class="p">[</span><span class="sh">'</span><span class="s">e_shoff</span><span class="sh">'</span><span class="p">])))</span>
+
+   <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="se">\n</span><span class="s">Section Header%s:</span><span class="sh">'</span> <span class="o">%</span> <span class="p">(</span>
+       <span class="sh">'</span><span class="s">s</span><span class="sh">'</span> <span class="k">if</span> <span class="n">elffile</span><span class="p">.</span><span class="nf">num_sections</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="sh">''</span><span class="p">))</span>
+
+
+   <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  [Nr] Name              Type             Address           Offset</span><span class="sh">'</span><span class="p">)</span>
+   <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">       Size              EntSize          Flags  Link  Info  Align</span><span class="sh">'</span><span class="p">)</span>
+
+   <span class="k">for</span> <span class="n">nsec</span><span class="p">,</span> <span class="n">section</span> <span class="ow">in</span> <span class="nf">enumerate</span><span class="p">(</span><span class="n">elffile</span><span class="p">.</span><span class="nf">iter_sections</span><span class="p">()):</span>
+
+       <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  [%2u] %-17.17s %-15.15s </span><span class="sh">'</span> <span class="o">%</span> <span class="p">(</span>
+       <span class="n">nsec</span><span class="p">,</span> <span class="n">section</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="nf">describe_sh_type</span><span class="p">(</span><span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_type</span><span class="sh">'</span><span class="p">])))</span>
+
+       <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s"> %s  %s</span><span class="sh">'</span> <span class="o">%</span> <span class="p">(</span>
+       <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_addr</span><span class="sh">'</span><span class="p">],</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">lead0x</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
+       <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_offset</span><span class="sh">'</span><span class="p">],</span>
+           <span class="n">fieldsize</span><span class="o">=</span><span class="mi">16</span> <span class="k">if</span> <span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_offset</span><span class="sh">'</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mh">0xffffffff</span> <span class="k">else</span> <span class="mi">8</span><span class="p">,</span>
+           <span class="n">lead0x</span><span class="o">=</span><span class="bp">False</span><span class="p">)))</span>
+       <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">     %s  %s %3s      %2s   %3s    %s</span><span class="sh">'</span> <span class="o">%</span> <span class="p">(</span>
+       <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_size</span><span class="sh">'</span><span class="p">],</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">lead0x</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
+       <span class="nf">_format_hex</span><span class="p">(</span><span class="n">elffile</span><span class="p">,</span><span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_entsize</span><span class="sh">'</span><span class="p">],</span> <span class="n">fullhex</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">lead0x</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span>
+       <span class="nf">describe_sh_flags</span><span class="p">(</span><span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_flags</span><span class="sh">'</span><span class="p">]),</span>
+       <span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_link</span><span class="sh">'</span><span class="p">],</span> <span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_info</span><span class="sh">'</span><span class="p">],</span>
+       <span class="n">section</span><span class="p">[</span><span class="sh">'</span><span class="s">sh_addralign</span><span class="sh">'</span><span class="p">]))</span>
+      
+   <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">Key to Flags:</span><span class="sh">'</span><span class="p">)</span>
+   <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  W (write), A (alloc), X (execute), M (merge),</span><span class="sh">'</span>
+           <span class="sh">'</span><span class="s"> S (strings), I (info),</span><span class="sh">'</span><span class="p">)</span>
+   <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  L (link order), O (extra OS processing required),</span><span class="sh">'</span>
+           <span class="sh">'</span><span class="s"> G (group), T (TLS),</span><span class="sh">'</span><span class="p">)</span>
+   <span class="nf">print</span><span class="p">(</span><span class="sh">'</span><span class="s">  C (compressed), x (unknown), o (OS specific),</span><span class="sh">'</span>
+           <span class="sh">'</span><span class="s"> E (exclude),</span><span class="sh">'</span><span class="p">)</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p><img src="/assets/img/headers/elf-file/elf12.png" alt="elf" /></p>
+
+<p>In conclusion, a thorough grasp of the structure and organization of executable and object files is provided by the in-depth examination of ELF file internals. The many sections, headers, and their respective functions in determining the properties of an ELF file have been investigated, revealing light on how the operating system loads, runs, and manages applications.</p>
+
+<p>You can use the following resources for more research and investigation to go deeper into this subject and widen your perspectives. With the help of these materials, you may improve your understanding of and ability to work with ELF files, binary formats, and system internals.</p>
+
+<p>Please refer to the following website for additional analysis.</p>
+
+<h2 id="reference">Reference</h2>
+
+<p><a href="https://www.caichinger.com/elf.html">https://www.caichinger.com/elf.html</a></p>
+
+<p><a href="https://refspecs.linuxfoundation.org/LSB_1.2.0/gLSB/specialsections.html">https://refspecs.linuxfoundation.org/LSB_1.2.0/gLSB/specialsections.html</a></p>
+
+<p><a href="https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-94076/index.html">https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-94076/index.html</a></p>
+
+<p><a href="https://github.com/eliben/pyelftools/blob/d37dd02e22c4ae39224962a0d300fb9aba2af683/scripts/readelf.py#L287">https://github.com/eliben/pyelftools/blob/d37dd02e22c4ae39224962a0d300fb9aba2af683/scripts/readelf.py#L287</a></p>
+
+<p><a href="https://www.ics.uci.edu/~aburtsev/238P/hw/hw3-elf/hw3-elf.html">https://www.ics.uci.edu/~aburtsev/238P/hw/hw3-elf/hw3-elf.html</a></p>
+
+<p><a href="https://www.intezer.com/blog/malware-analysis/executable-and-linkable-format-101-part-3-relocations/">https://www.intezer.com/blog/malware-analysis/executable-and-linkable-format-101-part-3-relocations/</a></p>
+
+<p><a href="http://refspecs.linux-foundation.org/LSB_4.0.0/LSB-Core-generic/LSB-Core-generic/sections.html">http://refspecs.linux-foundation.org/LSB_4.0.0/LSB-Core-generic/LSB-Core-generic/sections.html</a></p>
+
+<p><a href="https://www.intezer.com/blog/research/executable-linkable-format-101-part1-sections-segments/">https://www.intezer.com/blog/research/executable-linkable-format-101-part1-sections-segments/</a></p>
+
+<p><a href="https://linux-audit.com/elf-binaries-on-linux-understanding-and-analysis/">https://linux-audit.com/elf-binaries-on-linux-understanding-and-analysis/</a></p>
+
+<p><a href="https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblk/index.html#chapter6-20567">https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblk/index.html#chapter6-20567</a></p>
+
+<p><a href="https://man7.org/linux/man-pages/man5/elf.5.html">https://man7.org/linux/man-pages/man5/elf.5.html</a></p>
+

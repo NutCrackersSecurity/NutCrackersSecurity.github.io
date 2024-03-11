@@ -1,0 +1,248 @@
+<h2 id="pe-portable-executable-file-format">PE Portable Executable File Format</h2>
+
+<p>Hello, my name is Moldovan Darius, also known as <a href="https://twitter.com/T3jv1l">@T3jv1l</a>. I’m using the calc.exe executable file for this analysis. PE is the default file format for Win32. Win32 executables all employ the PE file format. All 32-bit DLLs, COM files, OCX controls, Control Panel Applets (.CPL files), and.NET executables are in the PE format. PE file format is used by even NT kernel mode drivers.</p>
+
+<p>“PE format is a data structure that encapsulates the information required for the Windows OS loader to manage the wrapped executable code,” according to Wikipedia. This comprises API export and import tables, resource management data, dynamic library references for linking, and thread-local storage (TLS) data. EXE, DLL, SYS (device driver), and other file types are stored in the PE format in NT operating systems. According to the Extensible Firmware Interface (EFI) specification, PE is the default executable format used in EFI settings.</p>
+
+<p>Ones of the PE data structures is:</p>
+
+<ul>
+  <li>_IMAGE_DOS_HEADER</li>
+  <li>DOS STUB</li>
+  <li>_IMAGE_NT_HEADER</li>
+</ul>
+
+<p>image directory entry, image optional header, and image file header (*).</p>
+
+<p>The MS-DOS header, which takes up the first 64 bytes of the PE file format, is called <code class="language-plaintext highlighter-rouge">_IMAGE_DOS_HEADER</code> when we begin. It is there in case DOS is used to run the program, allowing DOS to run the DOS stub that is put right after the header and recognize the program as a genuine executable. A full-fledged DOS application can be used instead of the typical DOS stub, which often merely prints a string saying something like “This program must be run under Microsoft Windows.”</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+</pre></td><td class="rouge-code"><pre><span class="k">typedef</span> <span class="k">struct</span> <span class="n">_IMAGE_DOS_HEADER</span> <span class="p">{</span>      <span class="c1">// DOS .EXE header</span>
+	<span class="n">USHORT</span> <span class="n">e_magic</span><span class="p">;</span>                 <span class="c1">// Magic number</span>
+	    <span class="n">USHORT</span> <span class="n">e_cblp</span><span class="p">;</span>              <span class="c1">// Bytes on last page of file</span>
+	    <span class="n">USHORT</span> <span class="n">e_cp</span><span class="p">;</span>                <span class="c1">// Pages in file</span>
+	    <span class="n">USHORT</span> <span class="n">e_crlc</span><span class="p">;</span>              <span class="c1">// Relocations</span>
+	    <span class="n">USHORT</span> <span class="n">e_cparhdr</span><span class="p">;</span>           <span class="c1">// Size of header in paragraphs</span>
+	    <span class="n">USHORT</span> <span class="n">e_minalloc</span><span class="p">;</span>          <span class="c1">// Minimum extra paragraphs needed</span>
+	    <span class="n">USHORT</span> <span class="n">e_maxalloc</span><span class="p">;</span>          <span class="c1">// Maximum extra paragraphs needed</span>
+	    <span class="n">USHORT</span> <span class="n">e_ss</span><span class="p">;</span>                <span class="c1">// Initial (relative) SS value</span>
+	    <span class="n">USHORT</span> <span class="n">e_sp</span><span class="p">;</span>                <span class="c1">// Initial SP value</span>
+	    <span class="n">USHORT</span> <span class="n">e_csum</span><span class="p">;</span>              <span class="c1">// Checksum</span>
+	    <span class="n">USHORT</span> <span class="n">e_ip</span><span class="p">;</span>                <span class="c1">// Initial IP value</span>
+	    <span class="n">USHORT</span> <span class="n">e_cs</span><span class="p">;</span>                <span class="c1">// Initial (relative) CS value</span>
+	    <span class="n">USHORT</span> <span class="n">e_lfarlc</span><span class="p">;</span>            <span class="c1">// File address of relocation table</span>
+	    <span class="n">USHORT</span> <span class="n">e_ovno</span><span class="p">;</span>              <span class="c1">// Overlay number</span>
+	    <span class="n">USHORT</span> <span class="n">e_res</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>            <span class="c1">// Reserved words</span>
+	    <span class="n">USHORT</span> <span class="n">e_oemid</span><span class="p">;</span>             <span class="c1">// OEM identifier (for e_oeminfo)</span>
+	    <span class="n">USHORT</span> <span class="n">e_oeminfo</span><span class="p">;</span>           <span class="c1">// OEM information; e_oemid specific</span>
+	    <span class="n">USHORT</span> <span class="n">e_res2</span><span class="p">[</span><span class="mi">10</span><span class="p">];</span>          <span class="c1">// Reserved words</span>
+	    <span class="n">LONG</span>   <span class="n">e_lfanew</span><span class="p">;</span>            <span class="c1">// File address of new exe header</span>
+	  <span class="p">}</span> <span class="n">IMAGE_DOS_HEADER</span><span class="p">,</span> <span class="o">*</span><span class="n">PIMAGE_DOS_HEADER</span><span class="p">;</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>The magic portion of the MS-DOS header in the PE file has the value <code class="language-plaintext highlighter-rouge">4D 5A</code> (MZ = Mark Zbikowsky, one of the early designers of MS-DOS).</p>
+
+<p>Before using WinDGB to evaluate this Header, let’s talk about what ImageBaseAddress is. This is crucial because we need to discover the address where the <code class="language-plaintext highlighter-rouge">_IMAGE_DOS_HEADER</code> is located. The address at which an executable file will be memory-mapped to a particular region in memory is called <code class="language-plaintext highlighter-rouge">ImageBase</code>.</p>
+
+<p>The most recent version of Windows has the <code class="language-plaintext highlighter-rouge">ImageBaseAddress=0x00400000</code>, according to MSDN. If everything is okay, let’s begin.</p>
+
+<p>Let’s use <code class="language-plaintext highlighter-rouge">ImageBaseAddress</code> to determine where calc.exe’s start address is now. Type <code class="language-plaintext highlighter-rouge">lmv m image00400000</code> with this command we inspect closely and the output will be displayed verbosely.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE2.png" alt="pe-file" /></p>
+
+<p>The PE file (calc.exe)’s image base address is currently <code class="language-plaintext highlighter-rouge">0x00270000</code>.</p>
+
+<p>The contents of <code class="language-plaintext highlighter-rouge">_IMAGE_DOS_HEADER</code> are now visible. It is comparable to the previous C syntax. We have the <code class="language-plaintext highlighter-rouge">MZ</code> string magic number <code class="language-plaintext highlighter-rouge">0x5A4D</code>.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE3.png" alt="pe-file" /></p>
+
+<p>We now need to determine <code class="language-plaintext highlighter-rouge">e_lfanew</code> ‘s offset. You may be wondering what this e_lfanew is. By indexing the e_lfanew field of the MS-DOS header, the PE file header can be found. The e_lfanew column only provides the file offset; to get the real memory-mapped address, add the file’s memory-mapped base address. Remember that <code class="language-plaintext highlighter-rouge">PE</code> appears in the signature, which is what we are looking for.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">Image_File_Header</code>, <code class="language-plaintext highlighter-rouge">Image_Optional_Header</code>, and <code class="language-plaintext highlighter-rouge">Image_Directory_Entry</code> are the three primary components of the main PE Header, which is a structure of type <code class="language-plaintext highlighter-rouge">IMAGE_NT_HEADERS</code>.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE4.png" alt="pe-file" /></p>
+
+<p>The <code class="language-plaintext highlighter-rouge">n</code> in <code class="language-plaintext highlighter-rouge">0n232</code> indicates that the number is base 10 and <code class="language-plaintext highlighter-rouge">x</code> will indicate base 16 (hex). Made a simple calculation to find the “PE string”</p>
+
+<p><img src="/assets/img/headers/pe-file/PE5.png" alt="pe-file" /></p>
+
+<p>Let’s now move on to the <code class="language-plaintext highlighter-rouge">_IMAGE_NT_HEADER</code>. Since this is the primary PE header and contains the PE Signature <code class="language-plaintext highlighter-rouge">0x4550</code>, <code class="language-plaintext highlighter-rouge">IMAGE_FILE_HEADER</code>, <code class="language-plaintext highlighter-rouge">IMAGE_OPTIONAL_HEADER</code> and <code class="language-plaintext highlighter-rouge">_IMAGE_DIRECTORY_ENTRY_[*]</code>, there is no need to go into great detail about it.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE6.png" alt="pe-file" /></p>
+
+<p>The <code class="language-plaintext highlighter-rouge">_IMAGE_FILE_HEADER</code> Section continues. At address 0x002700e8, we must add 4 bytes in order to access this area.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE7.png" alt="pe-file" /></p>
+
+<p>Let’s look at the contents of the PE file’s <code class="language-plaintext highlighter-rouge">_IMAGE_FILE_HEADER</code> section.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE8.png" alt="pe-file" /></p>
+
+<p>Machine section contain CPU IDs, we can see we have <code class="language-plaintext highlighter-rouge">0x14c</code> that means we use Intel I386.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE0.png" alt="pe-file" /></p>
+
+<ul>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">NumberOfSections</code>. The number of sections there are in the file.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">TimeDateStamp</code>. the moment at which this file was created by the linker (or compiler for an OBJ file).</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">PointerToSymbolTable</code>. Only OBJ and PE files with COFF debug information use this field.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">NumberOfSymbols</code>. how many symbols there are in the COFF symbol table. Check the COFF Simbol Table for more details.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">SizeOfOptionalHeader</code>. the dimensions of any optional header that could be used after this one. The field in OBJs is 0. It is the size of the structure called IMAGE_OPTIONAL_HEADER that comes after this structure in executables.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">Characteristics</code>. informational flags for the file.</p>
+  </li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">_IMAGE_OPTIONAL_HEADER</code> section follows. At position <code class="language-plaintext highlighter-rouge">0x002700ec</code>, we must add 20 bytes (0x14) in order to reach this part.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE9.png" alt="pe-file" /></p>
+
+<p>Let’s look at what the _IMAGE_OPTIONAL_HEADER section contains.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE10.png" alt="pe-file" /></p>
+
+<ul>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">Magic numeber</code> 0x10b. The optional header magic number determines whether an image is a PE32 (0x10b) or PE32+(0x20b) executable.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">MajorLinkerVersion</code>, MinorLinkerVersion. Indicates version of the linker that linked this image.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">SizeOfCode</code>. Size of executable code.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">SizeOfInitializedData</code>. Size of initialized data.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">SizeOfUninitializedData</code>.. Size of uninitialized data.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">AddressOfEntryPoint</code>. Defined in the PECOFF format for executable files refers to location in memory where the first instruction of execution will be placed</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">BaseOfCode</code>. Relative offset of code (“.text” section) in loaded image.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">BaseOfData</code>. Relative offset of uninitialized data (“.bss” section) in loaded image</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">ImageBase</code>. Preferred base address in the address space of a process to map the executable image to. The linker defaults to 0x00400000, but you can override the default with the -BASE: linker switch</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">SectionAlignment</code>. Each section is loaded into the address space of a process sequentially, beginning at ImageBase. SectionAlignment dictates the minimum amount of space a section can occupy when loaded–that is, sections are aligned on SectionAlignment boundaries.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">FileAlignment</code>. Minimum granularity of chunks of information within the image file prior to loading.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">MajorOperatingSystemVersion</code>. Indicates the major version of the Windows NT operating system.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">MinorOperatingSystemVersion</code>. Indicates the minor version of the Windows NT operating system.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">MajorImageVersion</code>. Used to indicate the major version number of the application.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">MinorImageVersion</code>. Used to indicate the minor version number of the application.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">MajorSubsystemVersion</code>. Indicates the Windows NT Win32 subsystem major version number.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">MinorSubsystemVersion</code>. Indicates the Windows NT Win32 subsystem minor version number.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">Win32VersionValues</code>. Defines a version-information resource. The resource contains such information about the file as its version number, its intended operating system, and its original filename</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">SizeOfImage</code>. Indicates the amount of address space to reserve in the address space for the loaded executable image. This number is influenced greatly by SectionAlignment.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">SizeOfHeaders</code>. This field indicates how much space in the file is used for representing all the file headers, including the MS-DOS header, PE file header, PE optional header, and PE section headers. The section bodies begin at this location in the file.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">CheckSum</code>. A checksum value is used to validate the executable file at load time. The value is set and verified by the linker. The algorithm used for creating these checksum values is proprietary information and will not be published.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">Subsystem</code>. Field used to identify the target subsystem for this executable. Each of the possible subsystem values are listed in the WINNT.H file immediately after the IMAGE_OPTIONAL_HEADER structure.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">DllCharacteristics</code>. Flags used to indicate if a DLL image includes entry points for process and thread initialization and termination.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">SizeOfStackReserve</code>, SizeOfStackCommit, SizeOfHeapReserve, SizeOfHeapCommit. These fields control the amount of address space to reserve and commit for the stack and default heap. Both the stack and heap have default values of 1 page committed and 16 pages reserved. These values are set with the linker switches -STACKSIZE: and -HEAPSIZE: .</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">LoaderFlags</code>. Tells the loader whether to break on load, debug on load, or the default, which is to let things run normally.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">NumberOfRvaAndSizes</code>. This field identifies the length of the DataDirectory array that follows. It is important to note that this field is used to identify the size of the array, not the number of valid entries in the array</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">DataDirectory</code>. The data directory indicates where to find other important components of executable information in the file. It is really nothing more than an array of IMAGE_DATA_DIRECTORY structures that are located at the end of the optional header structure. The current PE file format defines 16 possible data directories, 11 of which are now being used.</p>
+  </li>
+</ul>
+
+<p>Next Section is <code class="language-plaintext highlighter-rouge">_IMAGE_DATA_DIRECTORY</code>. To access this section we need to add 96 bytes at <code class="language-plaintext highlighter-rouge">0x002700100</code> address.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE11.png" alt="pe-file" /></p>
+
+<p>The address for the image data directory is currently <code class="language-plaintext highlighter-rouge">0x002700160</code>. Display this header 16 times.</p>
+
+<p><img src="/assets/img/headers/pe-file/PE12.png" alt="pe-file" /></p>
+
+<p>A 16 array <code class="language-plaintext highlighter-rouge">_IMAGE_DATA_DIRECTORY</code> structure represents the data directory. Each component of the data directory is a structure with the name <code class="language-plaintext highlighter-rouge">IMAGE_DATA_DIRECTORY</code> and the definition given below:</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+</pre></td><td class="rouge-code"><pre><span class="k">struct</span> <span class="n">IMAGE_DATA_DIRECTORY</span> <span class="n">STRUCT</span><span class="p">{</span>
+	<span class="n">VirtualAddress</span> <span class="n">dd</span> <span class="o">?</span>
+        <span class="n">ISize</span> <span class="n">dd</span> <span class="o">?</span>
+  <span class="p">}</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>I hope you like to read about this topic Reverse Engineering Stuff.</p>
+
+<h2 id="reference">Reference</h2>
+
+<p><a href="https://blog.kowalczyk.info/articles/pefileformat.html">https://blog.kowalczyk.info/articles/pefileformat.html</a></p>
+
+<p><a href="https://tech-zealots.com/malware-analysis/pe-portable-executable-structure-malware-analysis-part-2/">https://tech-zealots.com/malware-analysis/pe-portable-executable-structure-malware-analysis-part-2/</a></p>
+
+<p><a href="https://www.ixiacom.com/company/blog/debugging-malware-windbg">https://www.ixiacom.com/company/blog/debugging-malware-windbg</a></p>
+
+<p><a href="https://docs.microsoft.com/en-us/previous-versions/ms809762(v=msdn.10)?redirectedfrom=MSDN">https://docs.microsoft.com/en-us/previous-versions/ms809762(v=msdn.10)?redirectedfrom=MSDN</a></p>
+
+<p><a href="https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#general-concepts">https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#general-concepts</a></p>

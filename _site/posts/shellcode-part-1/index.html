@@ -1,0 +1,509 @@
+<p>Hello everyone. Today, we’ll talk about what shellcode is and how to make it.</p>
+
+<h2 id="how-does-shellcode-work">How does Shellcode work?</h2>
+
+<p>In hacking, a shellcode is a small piece of code that is used as the payload when a software flaw is exploited. It is called “shellcode” because it usually starts a command shell from which the attacker can handle the compromised machine. However, any piece of code that does the same thing can be called “shellcode.” Some people think that the name “shellcode” isn’t good enough because a payload’s purpose isn’t just to start a shell. But most people don’t like the alternatives that have been tried. Machine code is often used to write shellcode.
+Machine code is often used to write shellcode.</p>
+
+<h2 id="what-should-you-know-before-you-begin">What should you know before you begin?</h2>
+
+<p>You need to know x86/x64 assembly, C, and the Linux and Windows operating platforms.</p>
+
+<p>On the x64 OS, General Purpose Registers:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Register</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>rax</td>
+      <td>Accumulator</td>
+    </tr>
+    <tr>
+      <td>rbx</td>
+      <td>Base</td>
+    </tr>
+    <tr>
+      <td>rcx</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>rdx</td>
+      <td>Data</td>
+    </tr>
+    <tr>
+      <td>rsi</td>
+      <td>Source Index</td>
+    </tr>
+    <tr>
+      <td>rdi</td>
+      <td>Destination Index</td>
+    </tr>
+    <tr>
+      <td>rbp</td>
+      <td>Base Pointer</td>
+    </tr>
+    <tr>
+      <td>rsp</td>
+      <td>Stack Pointer</td>
+    </tr>
+    <tr>
+      <td>r8</td>
+      <td>General Purpose Register 8</td>
+    </tr>
+    <tr>
+      <td>r9</td>
+      <td>General Purpose Register 9</td>
+    </tr>
+    <tr>
+      <td>r10</td>
+      <td>General Purpose Register 10</td>
+    </tr>
+    <tr>
+      <td>r11</td>
+      <td>General Purpose Register 11</td>
+    </tr>
+    <tr>
+      <td>r12</td>
+      <td>General Purpose Register 12</td>
+    </tr>
+    <tr>
+      <td>r13</td>
+      <td>General Purpose Register 13</td>
+    </tr>
+    <tr>
+      <td>r14</td>
+      <td>General Purpose Register 14</td>
+    </tr>
+    <tr>
+      <td>r15</td>
+      <td>General Purpose Register 15</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Registers for general use on the x32 platform:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Register</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>eax</td>
+      <td>Accumulator</td>
+    </tr>
+    <tr>
+      <td>ebx</td>
+      <td>Base</td>
+    </tr>
+    <tr>
+      <td>ecx</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>edx</td>
+      <td>Data</td>
+    </tr>
+    <tr>
+      <td>esi</td>
+      <td>Source Index</td>
+    </tr>
+    <tr>
+      <td>edi</td>
+      <td>Destination Index</td>
+    </tr>
+    <tr>
+      <td>ebp</td>
+      <td>Base Pointer</td>
+    </tr>
+    <tr>
+      <td>esp</td>
+      <td>Stack Pointer</td>
+    </tr>
+    <tr>
+      <td>r8d</td>
+      <td>General Purpose Register 8</td>
+    </tr>
+    <tr>
+      <td>r9d</td>
+      <td>General Purpose Register 9</td>
+    </tr>
+    <tr>
+      <td>r10d</td>
+      <td>General Purpose Register 10</td>
+    </tr>
+    <tr>
+      <td>r11d</td>
+      <td>General Purpose Register 11</td>
+    </tr>
+    <tr>
+      <td>r12d</td>
+      <td>General Purpose Register 12</td>
+    </tr>
+    <tr>
+      <td>r13d</td>
+      <td>General Purpose Register 13</td>
+    </tr>
+    <tr>
+      <td>r14d</td>
+      <td>General Purpose Register 14</td>
+    </tr>
+    <tr>
+      <td>r15d</td>
+      <td>General Purpose Register 15</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Get the x16 bits at the top of the GPRs.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Register</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ax</td>
+      <td>Accumulator</td>
+    </tr>
+    <tr>
+      <td>bx</td>
+      <td>Base</td>
+    </tr>
+    <tr>
+      <td>cx</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>dx</td>
+      <td>Data</td>
+    </tr>
+    <tr>
+      <td>si</td>
+      <td>Source Index</td>
+    </tr>
+    <tr>
+      <td>di</td>
+      <td>Destination Index</td>
+    </tr>
+    <tr>
+      <td>bp</td>
+      <td>Base Pointer</td>
+    </tr>
+    <tr>
+      <td>sp</td>
+      <td>Stack Pointer</td>
+    </tr>
+    <tr>
+      <td>r8w</td>
+      <td>General Purpose Register 8</td>
+    </tr>
+    <tr>
+      <td>r9w</td>
+      <td>General Purpose Register 9</td>
+    </tr>
+    <tr>
+      <td>r10w</td>
+      <td>General Purpose Register 10</td>
+    </tr>
+    <tr>
+      <td>r11w</td>
+      <td>General Purpose Register 11</td>
+    </tr>
+    <tr>
+      <td>r12w</td>
+      <td>General Purpose Register 12</td>
+    </tr>
+    <tr>
+      <td>r13w</td>
+      <td>General Purpose Register 13</td>
+    </tr>
+    <tr>
+      <td>r14w</td>
+      <td>General Purpose Register 14</td>
+    </tr>
+    <tr>
+      <td>r15w</td>
+      <td>General Purpose Register 15</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Access the GPRs’ lower x8 bits.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Register</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>al</td>
+      <td>Accumulator Low</td>
+    </tr>
+    <tr>
+      <td>bl</td>
+      <td>Base Low</td>
+    </tr>
+    <tr>
+      <td>cl</td>
+      <td>Counter Low</td>
+    </tr>
+    <tr>
+      <td>dl</td>
+      <td>Data Low</td>
+    </tr>
+    <tr>
+      <td>sil</td>
+      <td>Source Index Low</td>
+    </tr>
+    <tr>
+      <td>dil</td>
+      <td>Destination Index Low</td>
+    </tr>
+    <tr>
+      <td>bpl</td>
+      <td>Base Pointer Low</td>
+    </tr>
+    <tr>
+      <td>spl</td>
+      <td>Stack Pointer Low</td>
+    </tr>
+    <tr>
+      <td>r8b</td>
+      <td>General Purpose Register 8</td>
+    </tr>
+    <tr>
+      <td>r9b</td>
+      <td>General Purpose Register 9</td>
+    </tr>
+    <tr>
+      <td>r10b</td>
+      <td>General Purpose Register 10</td>
+    </tr>
+    <tr>
+      <td>r11b</td>
+      <td>General Purpose Register 11</td>
+    </tr>
+    <tr>
+      <td>r12b</td>
+      <td>General Purpose Register 12</td>
+    </tr>
+    <tr>
+      <td>r13b</td>
+      <td>General Purpose Register 13</td>
+    </tr>
+    <tr>
+      <td>r14b</td>
+      <td>General Purpose Register 14</td>
+    </tr>
+    <tr>
+      <td>r15b</td>
+      <td>General Purpose Register 15</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>When making Linux syscalls, ESI and EDI are used.</p>
+
+<p>Using XOR EAX, EAX to clear a register is a great way to avoid the dangerous NULL bit!</p>
+
+<p>In Windows, all function inputs are put on the stack based on how the function is called.</p>
+
+<p>If you want to learn more about syscall, click on this link: <a href="https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/">(syscalls)</a>.</p>
+
+<h2 id="example-of-shellcode">Example of Shellcode!</h2>
+
+<p>First, we’ll write a small program in assembly code that will show <code class="language-plaintext highlighter-rouge">Ev1l T3jv1l h4ck 1337?</code></p>
+
+<p>You are probably using an operating system with a random stack and address space, and there may be a security feature that stops you from running code on the stack. Not every Linux-based operating system is the same, so I’ll show you a method for Ubuntu that should be easy to adapt.</p>
+
+<p><code class="language-plaintext highlighter-rouge">echo 0 &gt; /proc/sys/kernel/exec-shield (to turn it off)</code></p>
+
+<p><code class="language-plaintext highlighter-rouge">echo 0 &gt; /proc/sys/kernel/randomize_va_space (to turn it off)</code></p>
+
+<p><code class="language-plaintext highlighter-rouge">echo 1 &gt; /proc/sys/kernel/exec-shield (turn on)</code></p>
+
+<p><code class="language-plaintext highlighter-rouge">echo 1 &gt; /proc/sys/kernel/randomize_va_space [[make it work]]</code></p>
+
+<p>First, we use the <code class="language-plaintext highlighter-rouge">touch</code> command to make a file with the name <code class="language-plaintext highlighter-rouge">*.asm</code> and then we use the <code class="language-plaintext highlighter-rouge">nano</code> editor to write code. This is an example for 32 bit! You need to put in:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre><span class="nb">sudo </span>apt-get <span class="nb">install </span>lib32z1 lib32ncurses5
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>Assembly code for our shellcode:</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+</pre></td><td class="rouge-code"><pre><span class="n">global</span> <span class="n">_start</span>
+
+<span class="n">section</span> <span class="p">.</span><span class="n">text</span>
+
+<span class="n">_start</span><span class="o">:</span>
+<span class="n">jmp</span> <span class="n">message</span>
+
+<span class="n">proc</span><span class="o">:</span>
+    <span class="n">xor</span> <span class="n">eax</span><span class="p">,</span> <span class="n">eax</span>
+    <span class="n">mov</span> <span class="n">al</span><span class="p">,</span> <span class="mh">0x04</span>
+    <span class="n">xor</span> <span class="n">ebx</span><span class="p">,</span> <span class="n">ebx</span>
+    <span class="n">mov</span> <span class="n">bl</span><span class="p">,</span> <span class="mh">0x01</span>
+    <span class="n">pop</span> <span class="n">ecx</span>
+    <span class="n">xor</span> <span class="n">edx</span><span class="p">,</span> <span class="n">edx</span>
+    <span class="n">mov</span> <span class="n">dl</span><span class="p">,</span> <span class="mh">0x16</span>
+    <span class="kt">int</span> <span class="mh">0x80</span>
+
+    <span class="n">xor</span> <span class="n">eax</span><span class="p">,</span> <span class="n">eax</span>
+    <span class="n">mov</span> <span class="n">al</span><span class="p">,</span> <span class="mh">0x01</span>
+    <span class="n">xor</span> <span class="n">ebx</span><span class="p">,</span> <span class="n">ebx</span>
+    <span class="n">mov</span> <span class="n">bl</span><span class="p">,</span> <span class="mh">0x01</span>
+    <span class="kt">int</span> <span class="mh">0x80</span>
+
+<span class="n">message</span><span class="o">:</span>
+    <span class="n">call</span> <span class="n">proc</span>
+    <span class="n">msg</span> <span class="n">db</span> <span class="s">"Ev1l h4ck T3jv1l 1337?"</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>The <code class="language-plaintext highlighter-rouge">global _start</code> directive specifies that the symbol <code class="language-plaintext highlighter-rouge">_start</code> is globally accessible. The <code class="language-plaintext highlighter-rouge">section .text</code> directive indicates that the following instructions belong to the <code class="language-plaintext highlighter-rouge">.text</code> section, which typically contains executable code. <code class="language-plaintext highlighter-rouge">_start</code> is the entry point of the program. It is the first instruction executed when the program starts. In this case, it jumps to the message label.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">proc</code> is a label that defines a procedure or function. The first block of instructions sets up a system call to write to the standard output.</p>
+
+<p>Here’s a breakdown of the instructions:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">xor eax, eax</code> sets eax (the register for the system call number) to zero.</li>
+  <li><code class="language-plaintext highlighter-rouge">mov al, 0x04</code> moves the value 0x04 (system call number for write) into the lower 8 bits of eax.</li>
+  <li><code class="language-plaintext highlighter-rouge">xor ebx, ebx</code> sets ebx (the register for the file descriptor) to zero.</li>
+  <li><code class="language-plaintext highlighter-rouge">mov bl, 0x01</code> moves the value 0x01 (file descriptor for standard output) into the lower 8 bits of ebx.</li>
+  <li><code class="language-plaintext highlighter-rouge">pop ecx</code> retrieves the value from the top of the stack and stores it in ecx. This is likely used to obtain the address of the msg string.</li>
+  <li><code class="language-plaintext highlighter-rouge">xor edx, edx</code> sets edx (the register for the data length) to zero.</li>
+  <li><code class="language-plaintext highlighter-rouge">mov dl, 0x16</code> moves the value 0x16 (length of the string) into the lower 8 bits of edx.</li>
+  <li><code class="language-plaintext highlighter-rouge">int 0x80</code> triggers a software interrupt, invoking the system call.</li>
+</ul>
+
+<p>The second block of instructions sets up a system call to exit the program. Here’s a breakdown of the instructions:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">xor eax, eax</code> sets eax (the register for the system call number) to zero.</li>
+  <li><code class="language-plaintext highlighter-rouge">mov al, 0x01</code> moves the value 0x01 (system call number for exit) into the lower 8 bits of eax.</li>
+  <li><code class="language-plaintext highlighter-rouge">xor ebx, ebx</code> sets ebx (the register for the exit status) to zero.</li>
+  <li><code class="language-plaintext highlighter-rouge">mov bl, 0x01</code> moves the value 0x01 (exit status) into the lower 8 bits of ebx.</li>
+  <li><code class="language-plaintext highlighter-rouge">int 0x80</code> triggers a software interrupt, invoking the system call to exit the program.</li>
+  <li><code class="language-plaintext highlighter-rouge">message</code> is a label that marks the start of the msg string.</li>
+  <li><code class="language-plaintext highlighter-rouge">call proc</code> calls the proc procedure, executing the code inside it.</li>
+  <li><code class="language-plaintext highlighter-rouge">msg db "Ev1l h4ck T3jv1l 1337?"</code> defines a string named msg with the value “Ev1l h4ck T3jv1l 1337?”.</li>
+</ul>
+
+<p>This time, we need to use the next command to compile this code:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre></td><td class="rouge-code"><pre>nasm <span class="nt">-f</span> elf32 Asamblare.asm <span class="nt">-o</span> shellcode.o
+ld <span class="nt">-m</span> elf_i386 <span class="nt">-s</span> <span class="nt">-o</span> T3jv1l shellcode.o
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p><img src="/assets/img/headers/shellcode-part-1/shellcode1.png" alt="shellcode" /></p>
+
+<p>We can see the machine code called opcode to see how the program operate:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>objdump <span class="nt">-d</span> T3jv1l 
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p><img src="/assets/img/headers/shellcode-part-1/shellcode2.png" alt="shellcode" /></p>
+
+<p>To extract all the opcode we can use next command:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre><span class="k">for </span>i <span class="k">in</span> <span class="sb">`</span>objdump <span class="nt">-d</span> T3jv1l | <span class="nb">tr</span> <span class="s1">'\t'</span> <span class="s1">' '</span> | <span class="nb">tr</span> <span class="s1">' '</span> <span class="s1">'\n'</span> | egrep <span class="s1">'^[0-9a-f]{2}$'</span> <span class="sb">`</span> <span class="p">;</span> <span class="k">do </span><span class="nb">echo</span> <span class="nt">-n</span> <span class="s2">"</span><span class="se">\\</span><span class="s2">x</span><span class="nv">$i</span><span class="s2">"</span> <span class="p">;</span> <span class="k">done</span> 
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p><img src="/assets/img/headers/shellcode-part-1/shellcode3.png" alt="shellcode" /></p>
+
+<p>Ok, let’s make a small program in the computer language C to see if this shellcode will run.</p>
+
+<p>This is how the C code will look:</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+</pre></td><td class="rouge-code"><pre><span class="cp">#include</span> <span class="cpf">&lt;"stdio.h"&gt;</span><span class="cp">
+</span>
+<span class="kt">char</span> <span class="n">shellcode</span><span class="p">[]</span> <span class="o">=</span><span class="s">"</span><span class="se">\xeb\x19\x31\xc0\xb0\x04\x31\xdb\xb3\x01\x59\x31\xd2\xb2\x16\xcd\x80\x31\xc0\xb0\x01\x31\xdb\xb3\x01\xcd\x80\xe8\xe2\xff\xff\xff\x45\x76\x31\x6c\x20\x68\x34\x63\x6b\x20\x54\x33\x6a\x76\x31\x6c\x20\x31\x33\x33\x37\x3f\x20</span><span class="s">"</span><span class="p">;</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">**</span><span class="n">argv</span><span class="p">)</span> <span class="kt">int</span> <span class="n">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">**</span><span class="n">argv</span><span class="p">){</span>
+
+<span class="kt">int</span> <span class="o">*</span><span class="n">ret</span><span class="p">;</span>
+
+<span class="n">ret</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">ret</span> <span class="o">+</span> <span class="mi">2</span><span class="p">;</span>
+<span class="p">(</span><span class="o">*</span><span class="n">ret</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">shellcode</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p>Okay, we know that <code class="language-plaintext highlighter-rouge">char shellcode[]</code> saves the opcodes for our shellcode in hexadecimal format. Then, the main method does some kind of trick to run this shellcode. If we run the program after building it as an ELF32 binary with the <code class="language-plaintext highlighter-rouge">-z execstack</code> flag set, we get our shell.</p>
+
+<p>First, it uses the <code class="language-plaintext highlighter-rouge">main()</code> method to set up a variable of type <code class="language-plaintext highlighter-rouge">int *ret</code>, which is a pointer of type int. This value will be right after the saved ebp register in the main’s stack frame.</p>
+
+<p>Because our ret variable is right after the saved ebp register, the return address that was saved before calling the <code class="language-plaintext highlighter-rouge">main()</code> method will be found before the saved ebp register.</p>
+
+<p>So, it looks like we can use our ret pointer to point to the saved return address and replace it with the address of our shellcode.</p>
+
+<p>Now let’s see if the C program works by compiling it.</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>gcc <span class="nt">-m32</span> <span class="nt">-z</span> execstack T3jv1l.c <span class="nt">-o</span> shellcode
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p><img src="/assets/img/headers/shellcode-part-1/shellcode4.png" alt="shellcode" /></p>
+
+<h2 id="bonus">BONUS!!!</h2>
+
+<p>I made my own extract opcode tool in Python, which you can find at   <a href="https://github.com/T3jv1l/Sh3llshock">https://github.com/T3jv1l/Sh3llshock</a>.</p>
+
+<p><img src="/assets/img/headers/shellcode-part-1/shellcode7.png" alt="shellcode" /></p>
+
+<p>If you look, you’ll see that it’s the same shellcode as the one above, and this tool makes it just as easy to extract.</p>
+
+<p>This might not be the best example of Shellcode, but it might help you understand how they are made and how they can be run. We appreciate your time. (Please excuse my English, I’m not a native speaker.)</p>
+
+<h2 id="reference">Reference</h2>
+<p><a href="http://www.vividmachines.com/shellcode/shellcode.html">http://www.vividmachines.com/shellcode/shellcode.html</a></p>
+
+<p><a href="https://en.wikipedia.org/wiki/Shellcode">https://en.wikipedia.org/wiki/Shellcode</a></p>
+
+<p><a href="https://www.amazon.com/Shellcoders-Handbook-Discovering-Exploiting-Security/dp/047008023X">https://www.amazon.com/Shellcoders-Handbook-Discovering-Exploiting-Security/dp/047008023X</a></p>
+
+<p><a href="https://www.exploit-db.com/building-your-own-ud-shellcodes-part-1.pdf">https://www.exploit-db.com/building-your-own-ud-shellcodes-part-1.pdf</a></p>

