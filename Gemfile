@@ -2,7 +2,8 @@
 
 source "https://rubygems.org"
 
-gem "jekyll-theme-chirpy"
+
+gem "jekyll-theme-chirpy", "~> 6.0", ">= 6.0.1"
 
 # gemspec
 
